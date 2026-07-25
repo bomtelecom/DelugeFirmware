@@ -10,9 +10,10 @@ def build(osc: int) -> Submenu:
 
     Slot 1 (C++ slotIndex 0) is the primary sample; slots 2-4 are alternates. Each slot gets its
     own horizontal, icon-based menu (the same style used by the OSC1/OSC2 menu one level up):
-    File / Strt / End / Transpose. Strt and End open the sample marker editor focused on that
-    marker (loop points stay reachable inside that same editor screen); Transpose is a single
-    combined transpose+cents value, mirroring how OSC-level pitch is one entry, not two.
+    File / Strt / End / Transpose / Velo. Strt and End open the sample marker editor focused on
+    that marker (loop points stay reachable inside that same editor screen); Transpose is a single
+    combined transpose+cents value, mirroring how OSC-level pitch is one entry, not two. Velo edits
+    the slot's velocity range (1-127) used by RRMode::Velocity to pick a slot by note velocity.
     """
     mode = Menu(
         "sample::RoundRobinMode",
@@ -54,13 +55,20 @@ def build(osc: int) -> Submenu:
             _DOC,
             name="STRING_FOR_TRANSPOSE",
         )
+        velocity_range = Menu(
+            "sample::VariantVelocityRange",
+            f"sample{osc}RRVelocityRange{slot + 1}",
+            ["{name}", f"{osc}", f"{slot}"],
+            _DOC,
+            name="STRING_FOR_VELOCITY",
+        )
         children.append(
             Submenu(
                 "sample::RoundRobinSlot",
                 f"sample{osc}RoundRobinSlot{slot + 1}Menu",
                 ["{name}", "%%CHILDREN%%", f"{osc}", f"{slot}"],
                 _DOC,
-                [file_item, strt, end, transpose],
+                [file_item, strt, end, transpose, velocity_range],
                 name=f"STRING_FOR_VARIANT_SLOT_{slot + 1}",
                 available_when="Slot 1 is always available; alternate slots when loaded, or the next empty slot",
             )

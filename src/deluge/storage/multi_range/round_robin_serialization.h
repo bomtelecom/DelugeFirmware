@@ -68,6 +68,16 @@ Error readRoundRobinAlternates(DeserializerT& reader, RangeT* range) {
 					alternateHolder->setCents(reader.readTagOrAttributeValueInt());
 					reader.exitTag("cents");
 				}
+				else if (!strcmp(tagName, "velocityRangeMin")) {
+					range->setVelocityRange(range->rrCount + 1, (uint8_t)reader.readTagOrAttributeValueInt(),
+					                        range->getVelocityRangeMax(range->rrCount + 1));
+					reader.exitTag("velocityRangeMin");
+				}
+				else if (!strcmp(tagName, "velocityRangeMax")) {
+					range->setVelocityRange(range->rrCount + 1, range->getVelocityRangeMin(range->rrCount + 1),
+					                        (uint8_t)reader.readTagOrAttributeValueInt());
+					reader.exitTag("velocityRangeMax");
+				}
 				else if (!strcmp(tagName, "zone")) {
 					reader.match('{');
 					while (*(tagName = reader.readNextTagOrAttributeName())) {
