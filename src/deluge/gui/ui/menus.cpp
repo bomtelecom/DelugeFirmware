@@ -437,15 +437,18 @@ Submenu kitArpMenu{
 
 voice::PolyphonyType polyphonyMenu{STRING_FOR_POLYPHONY};
 voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
+voice::ChokeGroup voice::chokeGroupMenu{STRING_FOR_CHOKE_GROUP};
 voice::Portamento portaMenu{STRING_FOR_PORTAMENTO};
 voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
-HorizontalMenu voiceMenu{STRING_FOR_VOICE,
-                         {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &unisonMenu},
-                         HorizontalMenu::Layout::FIXED};
-HorizontalMenu voiceMenuWithoutUnison{STRING_FOR_VOICE,
-                                      {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
-                                      HorizontalMenu::Layout::FIXED};
+HorizontalMenu voiceMenu{
+    STRING_FOR_VOICE,
+    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &voice::chokeGroupMenu, &portaMenu, &unisonMenu},
+    HorizontalMenu::Layout::FIXED};
+HorizontalMenu voiceMenuWithoutUnison{
+    STRING_FOR_VOICE,
+    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &voice::chokeGroupMenu, &portaMenu},
+    HorizontalMenu::Layout::FIXED};
 HorizontalMenuGroup voiceMenuGroup{{&unisonMenu, &voiceMenuWithoutUnison}};
 
 // Envelope 1-4 menu -----------------------------------------------------------------------------

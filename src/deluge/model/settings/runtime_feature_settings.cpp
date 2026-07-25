@@ -205,6 +205,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundRobinSampleVariants],
 	                  STRING_FOR_COMMUNITY_FEATURE_ROUND_ROBIN_VARIANTS, "roundRobinSampleVariants",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Numbered choke groups
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ChokeGroups], STRING_FOR_COMMUNITY_FEATURE_CHOKE_GROUPS,
+	                  "chokeGroups", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

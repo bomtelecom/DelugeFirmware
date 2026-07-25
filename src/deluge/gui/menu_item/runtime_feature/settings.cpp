@@ -51,6 +51,7 @@ SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 SettingToggle menuRoundRobinSampleVariants(RuntimeFeatureSettingType::RoundRobinSampleVariants);
+SettingToggle menuChokeGroups(RuntimeFeatureSettingType::ChokeGroups);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -76,7 +77,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuHorizontalMenus,
     &menuTrimFromStartOfAudioClip,
     &menuShowBatteryLevel,
-    &menuRoundRobinSampleVariants};
+    &menuRoundRobinSampleVariants,
+    &menuChokeGroups};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
