@@ -1648,6 +1648,9 @@ ToggleBool configureOfflineRenderingMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLI
                                          STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, stemExport.renderOffline};
 ToggleBool configureMixdownMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
                                 stemExport.exportMixdown};
+menu_item::stem_export::ExportChokeGroups configureExportChokeGroupsMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_CHOKE_GROUPS,
+                                                                         STRING_FOR_CONFIGURE_EXPORT_STEMS_CHOKE_GROUPS,
+                                                                         stemExport.exportChokeGroups};
 menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                            {
                                                &configureNormalizationMenu,
@@ -1672,6 +1675,7 @@ menu_item::Submenu kitGlobalFXConfigureStemExportMenu{STRING_FOR_CONFIGURE_EXPOR
                                                           &configureSilenceMenu,
                                                           &configureSongFXMenu,
                                                           &configureOfflineRenderingMenu,
+                                                          &configureExportChokeGroupsMenu,
                                                       }};
 
 menu_item::Submenu kitGlobalFXStemExportMenu{
