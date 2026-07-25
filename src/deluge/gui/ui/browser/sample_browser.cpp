@@ -71,6 +71,8 @@
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include "util/sample_velocity_parse.h"
+#include <cmath>
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -1818,11 +1820,8 @@ doReturnFalse:
 
 skipOctaveCorrection:
 
-	int32_t rangeIndex = 0; // Keep this different to the sample index, just in case we need to skip a sample because it
-	                        // has the same pitch as a previous one. Skipping a range would leave our rangeArray with
-	                        // unused space allocated, but that's ok
-
-	int32_t lastTopNote = MIDI_NOTE_ERROR;
+	int32_t rangeIndex = 0; // Keep this different to the sample index, since several samples sharing a note become
+	                        // round-robin alternates of one range rather than each getting their own.
 
 	int32_t totalMSec = 0;
 	int32_t numWithFileLoopPoints = 0;
@@ -1835,32 +1834,39 @@ skipOctaveCorrection:
 
 	D_PRINTLN("creating ranges");
 
-	for (int32_t s = 0; s < numSamples; s++) {
-
-		if (!(s & 31)) {
-			AudioEngine::routineWithClusterLoading();
+	// The first range may already carry round-robin alternates and a mode/velocity configuration
+	// from earlier manual use (only ranges[1..] got deleted above) - the loop below is about to
+	// repopulate it from the folder's contents, so start from a clean slate rather than mixing stale
+	// alternate data with the newly imported set. clearAlternateSlot() is reused here rather than
+	// hand-rolling deallocation again, since it already correctly destructs and frees each holder.
+	{
+		auto* firstRange = (MultisampleRange*)soundEditor.currentMultiRange;
+		while (firstRange->rrCount > 0) {
+			firstRange->clearAlternateSlot(0);
 		}
+		firstRange->rrMode = MultisampleRange::RRMode::Cycle;
+	}
 
-		Sample* thisSample = sortArea[s];
+	// Samples that share a note become round-robin alternates of one shared range instead of each
+	// getting - or, as used to happen, silently losing - their own range. A group holds at most
+	// kMaxRoundRobinAlternates + 1 samples (one primary + up to 3 alternates); any further same-note
+	// sample is dropped, the same as every duplicate used to be before this existed.
+	constexpr int32_t kMaxGroupMembers = kMaxRoundRobinAlternates + 1;
+	Sample* groupMembers[kMaxGroupMembers];
+	uint8_t groupVelocities[kMaxGroupMembers];
+	bool groupHasVelocity[kMaxGroupMembers];
+	int32_t groupMemberCount = 0;
+	int32_t groupNote = 0;         // this group's own rounded note - valid once groupMemberCount > 0
+	float groupPrimaryNote = 0.0f; // the group's primary's own raw detected note, for boundary math
+	int32_t previousGroupTopNote = MIDI_NOTE_ERROR;
 
-		if (thisSample->midiNote == MIDI_NOTE_ERROR) {
-			D_PRINTLN("dismissing 1 sample for which pitch couldn't be detected");
-			// TODO: shouldn't we remove a reason here?
-			continue;
-		}
-
-		int32_t topNote = 32767;
-
-		if (s < numSamples - 1) {
-			Sample* nextSample = sortArea[s + 1];
-
-			float midPoint = (thisSample->midiNote + nextSample->midiNote) * 0.5;
-			topNote = midPoint; // Round down
-			if (topNote <= lastTopNote) {
-				D_PRINTLN("skipping sample cos %d <= %d", topNote, lastTopNote);
-				// TODO: shouldn't we remove a reason here?
-				continue;
-			}
+	// Finalizes the currently-buffered group into one MultisampleRange (+ alternates for any extra
+	// members), now that `finalTopNote` - the true boundary against the *next* distinct group,
+	// exactly like the single-sample-per-note topNote this replaces - is known. No-op if no group is
+	// pending (e.g. immediately before the very first sample is seen).
+	auto flushGroup = [&](int32_t finalTopNote) {
+		if (groupMemberCount == 0) {
+			return;
 		}
 
 		MultisampleRange* range;
@@ -1877,33 +1883,121 @@ skipOctaveCorrection:
 			    rangeIndex); // We know it's gonna succeed
 		}
 
-		D_PRINT("top note:  %d", topNote);
+		D_PRINT("top note:  %d", finalTopNote);
 
-		range->topNote = topNote;
+		range->topNote = finalTopNote;
+		bool rangeCoversJustOneNote = (finalTopNote == previousGroupTopNote + 1);
 
-		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
-		                                 true);
-		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
-		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
-		                                                       topNote);
+		for (int32_t m = 0; m < groupMemberCount; m++) {
+			Sample* memberSample = groupMembers[m];
 
-		totalMSec += thisSample->getLengthInMSec();
-		if (thisSample->fileLoopEndSamples) {
-			numWithFileLoopPoints++;
+			SampleHolderForVoice* holder =
+			    (m == 0) ? &range->sampleHolder : range->ensureAlternateHolder(range->rrCount);
+			if (holder == nullptr) {
+				// Out of memory partway through a group - drop this one, same as any other dropped sample.
+				memberSample->removeReason("E394");
+				continue;
+			}
+			if (m > 0) {
+				range->rrCount++;
+			}
+
+			holder->filePath.set(&memberSample->filePath);
+			holder->setAudioFile(memberSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
+			holder->setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote, finalTopNote);
+
+			// Only the primary feeds the folder-wide length/loop-point stats used below to guess a
+			// sensible repeat mode - matching how only one sample per note ever fed them before.
+			if (m == 0) {
+				totalMSec += memberSample->getLengthInMSec();
+				if (memberSample->fileLoopEndSamples) {
+					numWithFileLoopPoints++;
+				}
+				if (holder->loopEndPos) {
+					numWithResultingLoopEndPoints++;
+				}
+			}
+
+			if (ALPHA_OR_BETA_VERSION && memberSample->numReasonsToBeLoaded <= 0) {
+				FREEZE_WITH_ERROR("E216"); // I put this here to try and catch an E004 Luc got
+			}
+			memberSample->removeReason("E394"); // Remove that temporary reason we added above
 		}
-		if (range->sampleHolder.loopEndPos) {
-			numWithResultingLoopEndPoints++;
-		}
 
-		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
-			FREEZE_WITH_ERROR("E216"); // I put this here to try and catch an E004 Luc got
+		// If every member of a multi-sample group carries an explicit "velNNN"-style velocity tag,
+		// split the full 1-127 range between them - boundaries at the midpoints between consecutive
+		// parsed values, mirroring how topNote boundaries above are derived from adjacent MIDI notes
+		// - and switch this zone to Velocity mode. A group with any untagged member is left at the
+		// Cycle default with every slot's velocity range at its own 1-127 default: a missing tag
+		// means "assume full velocity" for that one slot, which would match every velocity and make
+		// any split meaningless anyway, so there's no useful partial case to handle here.
+		if (groupMemberCount > 1) {
+			bool allHaveVelocity = true;
+			for (int32_t m = 0; m < groupMemberCount; m++) {
+				allHaveVelocity = allHaveVelocity && groupHasVelocity[m];
+			}
+
+			if (allHaveVelocity) {
+				uint8_t rangeMin[kMaxGroupMembers];
+				uint8_t rangeMax[kMaxGroupMembers];
+				computeVelocityLayerBoundaries(groupVelocities, groupMemberCount, rangeMin, rangeMax);
+				for (int32_t m = 0; m < groupMemberCount; m++) {
+					range->setVelocityRange(m, rangeMin[m], rangeMax[m]);
+				}
+				range->rrMode = MultisampleRange::RRMode::Velocity;
+			}
 		}
-		thisSample->removeReason("E394"); // Remove that temporary reason we added above
 
 		rangeIndex++;
-		lastTopNote = topNote;
+		previousGroupTopNote = finalTopNote;
+	};
+
+	for (int32_t s = 0; s < numSamples; s++) {
+
+		if (!(s & 31)) {
+			AudioEngine::routineWithClusterLoading();
+		}
+
+		Sample* thisSample = sortArea[s];
+
+		if (thisSample->midiNote == MIDI_NOTE_ERROR) {
+			D_PRINTLN("dismissing 1 sample for which pitch couldn't be detected");
+			// TODO: shouldn't we remove a reason here?
+			continue;
+		}
+
+		int32_t thisNoteRounded = (int32_t)roundf(thisSample->midiNote);
+		bool startsNewGroup = (groupMemberCount == 0) || (thisNoteRounded != groupNote);
+
+		char const* fileNameOnly = getFileNameFromEndOfPath(thisSample->filePath.get());
+
+		if (startsNewGroup) {
+			if (groupMemberCount > 0) {
+				// The previous group now knows its true extent: up to the midpoint with this sample,
+				// exactly the boundary a single-sample-per-note zone would have gotten before.
+				int32_t finalTopNote = (int32_t)((groupPrimaryNote + thisSample->midiNote) * 0.5f);
+				flushGroup(finalTopNote);
+			}
+
+			groupNote = thisNoteRounded;
+			groupPrimaryNote = thisSample->midiNote;
+			groupMembers[0] = thisSample;
+			groupHasVelocity[0] = tryParseVelocityFromFilename(fileNameOnly, &groupVelocities[0]);
+			groupMemberCount = 1;
+		}
+		else if (groupMemberCount < kMaxGroupMembers) {
+			groupMembers[groupMemberCount] = thisSample;
+			groupHasVelocity[groupMemberCount] =
+			    tryParseVelocityFromFilename(fileNameOnly, &groupVelocities[groupMemberCount]);
+			groupMemberCount++;
+		}
+		else {
+			D_PRINTLN("dropping sample beyond the %d-deep round-robin slot limit for this note", kMaxGroupMembers);
+			thisSample->removeReason("E394");
+		}
 	}
+
+	flushGroup(32767); // The very last group always extends to the top, same as a lone final sample did before.
 
 	numSamples = rangeIndex;
 
