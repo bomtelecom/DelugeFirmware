@@ -3,9 +3,15 @@ title: Round-Robin Sample Variants
 ---
 
 Each oscillator sample zone in Synth and Kit sound sources can hold up to 4 sample variants: the primary sample
-plus up to 3 alternates, played in rotation each time the zone is triggered. This is the classic
-multi-sample-per-pad workflow found on MPC-style samplers, and is especially useful for removing the "machine
-gun" effect that repeated hits of the same drum sample can produce.
+plus up to 3 alternates, played in rotation (or selected by velocity) each time the zone is triggered. This is
+the classic multi-sample-per-pad workflow found on MPC-style samplers, and is especially useful for removing
+the "machine gun" effect that repeated hits of the same drum sample can produce.
+
+Variants only apply to a zone that is the sole zone on its oscillator - an oscillator split into multiple
+keyboard zones (a typical keyboard-spanning multisample instrument) doesn't show the `VARIANTS` menu on any of
+its zones. The zone-selection flow used to pick a zone on a multi-zone instrument works with flat, single-hop
+parameters like `FILE`/`START`/`END`/`TRANSPOSE`; it isn't built to compose with a nested submenu like
+`VARIANTS`, so the menu steps aside there rather than attempting to.
 
 ## Enabling the feature
 
@@ -16,35 +22,58 @@ the feature is turned back on.
 
 ## The Variants menu
 
-With an oscillator in `SAMPLE` mode, a new `VARIANTS` submenu is available under `OSC1`/`OSC2`, alongside the
-existing `FILE` browser item.
+With an oscillator in `SAMPLE` mode (and only a single zone on that oscillator), a new `VARIANTS` submenu is
+available under `OSC1`/`OSC2`, alongside the existing `FILE` browser item. Once at least one alternate is
+loaded, `OSC1`/`OSC2`'s own `FILE`/`START`/`END`/`TRANSPOSE` items hide themselves, since editing slot 1 from
+inside `VARIANTS` is now the one path to that same data.
 
 - `MODE` - selects how the next variant is chosen each time the zone is triggered. Only shown once at least one
   alternate is loaded.
   - `CYCLE` - play the loaded slots in order, wrapping around (classic round-robin).
   - `RANDOM` - pick any loaded slot at random.
   - `NO REPEAT` - pick a random slot, but never repeat the slot that just played.
-- `SLOT 1` through `SLOT 4` - each opens a submenu for that slot:
+  - `VELOCITY` - pick the slot whose configured velocity range contains the incoming note's velocity, the same
+    way MPC's Velocity layer-play mode works (see below).
+- `SLOT 1` through `SLOT 4` - each opens a horizontal, icon-based page for that slot (the same style as the
+  `OSC1`/`OSC2` page one level up):
   - `FILE` - opens the sample browser to load (or replace) that slot's sample. `SLOT 1` is the primary sample and
     can also be loaded via the regular `FILE` browser item; slots 2-4 are alternates and must be filled in order
     (the next empty slot is indicated with `Load`).
-  - `MARKERS` - opens the sample marker editor for that slot. Start, end and loop points are all editable from
-    the one screen - pressing near any marker switches focus to it - so this single entry covers everything you'd
-    otherwise need separate Start/End items for.
-  - `TRANSPOSE` and `CENTS` - per-slot pitch offsets, independent of the zone's other pitch settings.
+  - `STRT` / `END` - open the sample marker editor focused on that marker. Loop points stay reachable from the
+    same editor screen - pressing near any marker switches focus to it.
+  - `TRANSPOSE` - a single combined semitones+cents pitch offset for that slot, independent of the zone's other
+    pitch settings.
+  - `VELO` - that slot's velocity range (1-127), used when `MODE` is set to `VELOCITY`. Present on every slot
+    regardless of the current mode, so it can be configured ahead of switching to `VELOCITY`.
 - Pressing `SHIFT` + `SAVE/DELETE` while an alternate slot (2-4) is selected clears that variant, shifting any
   later slots down to fill the gap.
 
+## Velocity mode
+
+Each slot (including the primary) has its own `[min, max]` velocity range, defaulting to the full 1-127 span.
+When `MODE` is `VELOCITY`, a triggered note picks the first slot (scanned in slot order, 1 through 4) whose
+range contains the note's velocity; if no slot's range matches (a gap between configured ranges), slot 1 plays.
+Ranges are free to overlap - on overlap, the lower-numbered slot wins.
+
+Since every slot defaults to the full range, switching `MODE` to `VELOCITY` on a zone whose ranges haven't been
+customized has no audible effect until at least two slots' `VELO` ranges are edited to carve out non-overlapping
+windows.
+
+Loading a folder of samples that all carry an explicit velocity tag in their filename (`vel100`, `VEL64`, `_vel1`,
+etc. - "vel" followed by a 1-127 value) automatically splits the full range across them at the midpoints between
+their tagged values, and switches that zone to `VELOCITY` mode. A group with any untagged member is left at the
+`CYCLE` default instead, since a missing tag would make a partial split meaningless.
+
 ## Auditioning a specific variant
 
-While a slot's submenu (or its marker editor) is open, auditioning the drum or note plays that exact slot
-without advancing the round-robin cycle - so you can always hear exactly what you're editing, regardless of
-which mode is selected or where the cycle currently is.
+While a slot's page (or its marker editor) is open, auditioning the drum or note plays that exact slot without
+advancing the round-robin cycle - so you can always hear exactly what you're editing, regardless of which mode
+is selected or where the cycle currently is.
 
 ## Kit pad feedback
 
-In Kit clips, auditioning a pad with variants loaded shows a popup with the file name and slot position of the
-variant that just played, for example `kick_2.wav (3/4)`.
+In Kit clips, auditioning a pad with variants loaded on its first oscillator shows a popup with the file name
+and slot position of the variant that just played, for example `kick_2.wav (3/4)`.
 
 ## Save format
 
