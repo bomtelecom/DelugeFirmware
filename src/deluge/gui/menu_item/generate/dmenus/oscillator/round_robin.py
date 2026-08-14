@@ -10,10 +10,13 @@ def build(osc: int) -> Submenu:
 
     Slot 1 (C++ slotIndex 0) is the primary sample; slots 2-4 are alternates. Each slot gets its
     own horizontal, icon-based menu (the same style used by the OSC1/OSC2 menu one level up):
-    File / Strt / End / Transpose / Velo. Strt and End open the sample marker editor focused on
-    that marker (loop points stay reachable inside that same editor screen); Transpose is a single
-    combined transpose+cents value, mirroring how OSC-level pitch is one entry, not two. Velo edits
-    the slot's velocity range (1-127) used by RRMode::Velocity to pick a slot by note velocity.
+    File / Strt / End / Transpose / VMin / VMax. Strt and End open the sample marker editor focused
+    on that marker (loop points stay reachable inside that same editor screen); Transpose is a
+    single combined transpose+cents value, mirroring how OSC-level pitch is one entry, not two.
+    VMin and VMax are the two ends of the slot's velocity range (1-127) used by RRMode::Velocity to
+    pick a slot by note velocity - two adjacent columns, each edited in place, since a horizontal
+    menu has no gesture for choosing which end of a single two-ended item you are editing. They
+    only appear while the zone's mode is Velocity.
     """
     mode = Menu(
         "sample::RoundRobinMode",
@@ -55,12 +58,31 @@ def build(osc: int) -> Submenu:
             _DOC,
             name="STRING_FOR_TRANSPOSE",
         )
-        velocity_range = Menu(
-            "sample::VariantVelocityRange",
-            f"sample{osc}RRVelocityRange{slot + 1}",
-            ["{name}", f"{osc}", f"{slot}"],
+        velocity_min = Menu(
+            "sample::VariantVelocityEdge",
+            f"sample{osc}RRVelocityMin{slot + 1}",
+            [
+                "{name}",
+                f"{osc}",
+                f"{slot}",
+                "sample::VariantVelocityEdge::Edge::Min",
+            ],
             _DOC,
-            name="STRING_FOR_VELOCITY",
+            name="STRING_FOR_VELOCITY_MIN",
+            available_when="Mode is set to Velocity",
+        )
+        velocity_max = Menu(
+            "sample::VariantVelocityEdge",
+            f"sample{osc}RRVelocityMax{slot + 1}",
+            [
+                "{name}",
+                f"{osc}",
+                f"{slot}",
+                "sample::VariantVelocityEdge::Edge::Max",
+            ],
+            _DOC,
+            name="STRING_FOR_VELOCITY_MAX",
+            available_when="Mode is set to Velocity",
         )
         children.append(
             Submenu(
@@ -68,7 +90,7 @@ def build(osc: int) -> Submenu:
                 f"sample{osc}RoundRobinSlot{slot + 1}Menu",
                 ["{name}", "%%CHILDREN%%", f"{osc}", f"{slot}"],
                 _DOC,
-                [file_item, strt, end, transpose, velocity_range],
+                [file_item, strt, end, transpose, velocity_min, velocity_max],
                 name=f"STRING_FOR_VARIANT_SLOT_{slot + 1}",
                 available_when="Slot 1 is always available; alternate slots when loaded, or the next empty slot",
             )

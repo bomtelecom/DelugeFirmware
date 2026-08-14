@@ -1000,6 +1000,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CYCLE, "Cycle"},
         {STRING_FOR_NO_REPEAT, "No Repeat"},
         {STRING_FOR_LOAD, "Load"},
+        {STRING_FOR_VELOCITY_MIN, "Velocity min"},
+        {STRING_FOR_VELOCITY_MIN_SHORT, "VMIN"},
+        {STRING_FOR_VELOCITY_MAX, "Velocity max"},
+        {STRING_FOR_VELOCITY_MAX_SHORT, "VMAX"},
     },
 };
 } // namespace deluge::l10n::built_in
