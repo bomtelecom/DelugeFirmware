@@ -45,7 +45,11 @@ namespace deluge::gui::menu_item::sample {
 inline constexpr int32_t kVariantFileNameRenderLength = 60;
 
 /// Returns the MultisampleRange currently targeted by the variants menus for the given source,
-/// or nullptr when it doesn't apply (audio clip, non-sample source, no ranges).
+/// or nullptr when it doesn't apply (audio clip, non-sample source, no ranges). On a multi-zone
+/// source, this is the zone previously selected through the note-range picker; if no zone has been
+/// selected yet, returns nullptr rather than guessing - the menus below all sit behind the picker
+/// (checkPermissionToBeginSessionForRangeSpecificParam returns MUST_SELECT_RANGE), so by the time
+/// any of them needs a range, one has been chosen.
 inline MultisampleRange* getRoundRobinRange(uint8_t sourceId) {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return nullptr;
@@ -58,10 +62,34 @@ inline MultisampleRange* getRoundRobinRange(uint8_t sourceId) {
 	if (source.getOscType() != OscType::SAMPLE || source.ranges.getNumElements() == 0) {
 		return nullptr;
 	}
-	if (soundEditor.currentSourceIndex == sourceId && soundEditor.currentMultiRange != nullptr) {
-		return static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
+	int32_t zoneIndex = soundEditor.getCurrentZoneIndex(sourceId);
+	if (zoneIndex < 0) {
+		return nullptr;
 	}
-	return static_cast<MultisampleRange*>(source.ranges.getElement(0));
+	return static_cast<MultisampleRange*>(source.ranges.getElement(zoneIndex));
+}
+
+/// True when any zone on this source has alternates loaded.
+///
+/// The OSC-level FILE/START/END/TRANSPOSE items step aside for the whole oscillator when this holds,
+/// rather than zone by zone: a menu that changed shape as you moved between zones would be harder to
+/// learn than one that doesn't, and this keeps every zone reached the same way - through VARIANTS.
+/// On a single-zone source (and so on a kit drum) it reduces to exactly the original rule, "does
+/// this zone have alternates", so there is one rule everywhere.
+///
+/// Gated on the community feature: with it off the VARIANTS menu is hidden, and these items are then
+/// the only way to reach a zone's sample at all.
+inline bool sourceUsesVariants(Source& source) {
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
+	    || source.getOscType() != OscType::SAMPLE) {
+		return false;
+	}
+	for (int32_t e = 0; e < source.ranges.getNumElements(); e++) {
+		if (static_cast<MultisampleRange*>(source.ranges.getElement(e))->rrCount > 0) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /// Draws the file name of the given variant slot, right-aligned in a submenu row.
@@ -149,33 +177,84 @@ public:
 		}
 	}
 
+	// Everything in here edits one zone's data: report range-dependence (drives the keyboard-pad
+	// zone highlight and the title-row zone indicator) and the source for the note-range picker.
+	bool isRangeDependent() override { return true; }
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
+
+	// "Var C3-F#4" - unlike the oscillator page, everything from here down really is confined to one
+	// keyboard zone, so this is where naming it is truthful. Abbreviated to leave room for the widest
+	// note range; this screen is a plain list with no title shortening of its own to fall back on.
+	[[nodiscard]] std::string_view getTitle() const override {
+		std::string zone;
+		soundEditor.appendCurrentZoneDescription(zone, sourceId_);
+		if (zone.empty()) {
+			return l10n::getView(title);
+		}
+		title_buf_ = "Var";
+		title_buf_ += zone;
+		return title_buf_;
+	}
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
 		    || !isSampleModeSample(modControllable, sourceId_)) {
 			return false;
 		}
-		// Variants are scoped to a single sample zone. On a multi-zone (key-split) instrument the
-		// zone-selection flow (note-range menu) is built for flat, single-hop params like FILE/START/
-		// END/TRANSPOSE, not for a nested submenu like this one, so round-robin steps aside there
-		// rather than trying to compose with it.
+		// Variants are per-zone. On a multi-zone (key-split) instrument, entering this submenu first
+		// routes through the note-range picker (checkPermissionToBeginSession below returns
+		// MUST_SELECT_RANGE), and everything inside then edits the picked zone's variants - same as
+		// the zone flow the flat FILE/START/END/TRANSPOSE items use.
 		auto* sound = static_cast<Sound*>(modControllable);
-		return sound->sources[sourceId_].ranges.getNumElements() == 1;
+		return sound->sources[sourceId_].ranges.getNumElements() > 0;
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+		// Pin the editor to this oscillator before the child items run - everything below resolves
+		// the target zone via (currentSourceIndex, currentMultiRange), the same way the flat
+		// FILE/START/END items' own beginSession does. On a multi-zone source the note-range picker
+		// has already set currentMultiRange by the time we get here (see
+		// checkPermissionToBeginSession below), and setCurrentSource() preserves a non-null range.
+		soundEditor.setCurrentSource(sourceId_);
+
+		// Submenu::beginSession() clears currentMultiRange before it filters the children, which
+		// would throw away the zone the picker just selected: Mode would then see no zone and filter
+		// itself out, and entering a slot would send you back through the picker. Carry it across the
+		// call, exactly as HorizontalMenu::beginSession() already does for its own children.
+		::MultiRange* selectedRange = soundEditor.currentMultiRange;
+		int16_t selectedRangeIndex = soundEditor.currentMultiRangeIndex;
 		Submenu::beginSession(navigatedBackwardFrom);
+		soundEditor.currentMultiRange = selectedRange;
+		soundEditor.currentMultiRangeIndex = selectedRangeIndex;
+
 		// At the Variants list level no specific slot is being edited, so auditioning follows the
 		// normal round-robin again.
 		MultisampleRange::clearAuditionSlot();
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		MultisampleRange* range = getRoundRobinRange(sourceId_);
-		if (range == nullptr) {
+		auto* sound = soundEditor.currentSound;
+		if (sound == nullptr) {
 			return;
 		}
-		// Show how many variant slots are in use (1-4).
-		char buf[2] = {static_cast<char>('1' + range->rrCount), '\0'};
+		Source& source = sound->sources[sourceId_];
+		if (source.getOscType() != OscType::SAMPLE || source.ranges.getNumElements() == 0) {
+			return;
+		}
+
+		// Every sample loaded on this oscillator, summed across its keyboard zones. The oscillator page
+		// makes no claim about any one zone - its title names none, and entering VARIANTS asks which zone
+		// you want - so the number sitting on it shouldn't either. Reporting the current zone's count
+		// instead made it swing between a total and a per-zone count depending on whether a zone happened
+		// to be established, so backing out of VARIANTS turned a keyboard-wide total into a bare 4.
+		// On a single zone, and so on a kit drum, this is that zone's own slot count exactly as before.
+		int32_t slotsInUse = 0;
+		for (int32_t e = 0; e < source.ranges.getNumElements(); e++) {
+			slotsInUse += static_cast<MultisampleRange*>(source.ranges.getElement(e))->rrCount + 1;
+		}
+
+		char buf[12];
+		intToString(slotsInUse, buf);
 		deluge::hid::display::OLED::main.drawStringCentered(buf, slot.start_x,
 		                                                    slot.start_y + kHorizontalMenuSlotYOffset,
 		                                                    kTextTitleSpacingX, kTextTitleSizeY, slot.width);
@@ -187,11 +266,28 @@ public:
 			return MenuPermission::NO;
 		}
 		auto* sound = static_cast<Sound*>(modControllable);
+
+		// On a multi-zone source, go through the note-range picker every time in, rather than reusing
+		// whichever zone the editor happens to be holding. Once any zone has variants the OSC-level
+		// zone-scoped items are hidden, so this is the only remaining way to switch zones - reusing a
+		// zone here locks you to it for the rest of the session. The picker starts on the last zone
+		// used, so confirming it is a single press.
+		//
+		// The picker calls straight back here once it has a zone, and that call arrives while the
+		// picker is still the current screen - which is how the two are told apart. Kits are left
+		// alone: they have always edited their first zone without a picker.
+		if (!soundEditor.editingKit() && sound->sources[sourceId_].ranges.getNumElements() > 1
+		    && !soundEditor.inNoteRangePicker()) {
+			*currentRange = nullptr;
+			return MenuPermission::MUST_SELECT_RANGE;
+		}
+
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
 	}
 
 private:
 	uint8_t sourceId_;
+	mutable std::string title_buf_;
 };
 
 // Opens the sample browser for a specific slot (slotIndex 0 = primary, 1-3 = alternates).
@@ -421,7 +517,58 @@ private:
 	Edge edge_;
 };
 
-// Horizontal, icon-based menu for one round-robin slot: [File, Strt, End, Transpose, VMin, VMax] -
+// Per-slot level trim, 0-50 with 50 as unity, stored on the slot's own holder right beside the
+// transpose/cents that VariantTranspose edits. Attenuation only: round-robin takes usually need the
+// loud one pulled down, and a boost would have to fight the amplitude headroom limits in
+// Voice::render(). Edited in place with the select encoder, like the rest of the slot page.
+class VariantVolume final : public Integer {
+public:
+	VariantVolume(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
+	    : Integer(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
+
+	bool isRangeDependent() override { return true; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
+	}
+
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             MultiRange** currentRange) override {
+		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
+	}
+
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kVariantVolumeUnity; }
+
+	// A knob says less than the number here, and two digits fit a column comfortably.
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_VOLUME_SHORT)); }
+
+	void readCurrentValue() override {
+		if (SampleHolderForVoice* holder = getHolder(); holder != nullptr) {
+			this->setValue(holder->volume);
+		}
+	}
+
+	void writeCurrentValue() override {
+		if (SampleHolderForVoice* holder = getHolder(); holder != nullptr) {
+			holder->volume = (uint8_t)this->getValue();
+			getCurrentInstrument()->beenEdited();
+		}
+	}
+
+private:
+	SampleHolderForVoice* getHolder() const {
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		return range != nullptr ? range->getVariantHolder(slotIndex_) : nullptr;
+	}
+
+	uint8_t sourceId_;
+	uint8_t slotIndex_;
+};
+
+// Horizontal, icon-based menu for one round-robin slot: [File, Strt, End, Transpose, VMin, VMax, Vol] -
 // the same horizontal/paging mechanics OSC1/OSC2 (submenu::ActualSource) use one level up. Paging
 // overflows onto a second page automatically once a slot has more than 4 items (see
 // HorizontalMenu::preparePaging()), so the velocity columns needed no special-casing; outside
@@ -435,6 +582,26 @@ public:
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return isSampleModeSample(modControllable, sourceId_);
+	}
+
+	// See RoundRobinSubmenu: slot pages edit one zone's data.
+	bool isRangeDependent() override { return true; }
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
+
+	// "S2 C3-F#4" - the slot page is two levels below the zone picker, so without this the zone its
+	// edits land on is invisible. Abbreviated because the full "Slot 2 C3-F#4" doesn't fit beside the
+	// page counter, which every slot page has. OLED only: on 7SEG a submenu shows its focused child's
+	// name rather than a title of its own, so there is no header here to extend.
+	[[nodiscard]] std::string_view getTitle() const override {
+		std::string zone;
+		soundEditor.appendCurrentZoneDescription(zone, sourceId_);
+		if (zone.empty()) {
+			return l10n::getView(name);
+		}
+		title_buf_ = "S";
+		title_buf_ += static_cast<char>('1' + slotIndex_);
+		title_buf_ += zone;
+		return title_buf_;
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
@@ -490,6 +657,7 @@ public:
 private:
 	uint8_t sourceId_;
 	uint8_t slotIndex_;
+	mutable std::string title_buf_;
 };
 
 class RoundRobinMode final : public menu_item::Selection {
@@ -509,6 +677,9 @@ public:
 		MultisampleRange* range = getRoundRobinRange(sourceId_);
 		return range != nullptr && range->rrCount > 0;
 	}
+
+	// See RoundRobinSubmenu: the mode is stored per zone.
+	bool isRangeDependent() override { return true; }
 
 	void readCurrentValue() override {
 		MultisampleRange* range = getRoundRobinRange(sourceId_);

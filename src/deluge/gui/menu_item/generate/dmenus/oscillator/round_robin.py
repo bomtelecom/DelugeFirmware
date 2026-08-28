@@ -16,7 +16,8 @@ def build(osc: int) -> Submenu:
     VMin and VMax are the two ends of the slot's velocity range (1-127) used by RRMode::Velocity to
     pick a slot by note velocity - two adjacent columns, each edited in place, since a horizontal
     menu has no gesture for choosing which end of a single two-ended item you are editing. They
-    only appear while the zone's mode is Velocity.
+    only appear while the zone's mode is Velocity. Vol is a per-slot level trim (0-50,
+    50 = unity, attenuation only) for balancing takes against each other.
     """
     mode = Menu(
         "sample::RoundRobinMode",
@@ -84,13 +85,20 @@ def build(osc: int) -> Submenu:
             name="STRING_FOR_VELOCITY_MAX",
             available_when="Mode is set to Velocity",
         )
+        volume = Menu(
+            "sample::VariantVolume",
+            f"sample{osc}RRVolume{slot + 1}",
+            ["{name}", f"{osc}", f"{slot}"],
+            _DOC,
+            name="STRING_FOR_VARIANT_VOLUME",
+        )
         children.append(
             Submenu(
                 "sample::RoundRobinSlot",
                 f"sample{osc}RoundRobinSlot{slot + 1}Menu",
                 ["{name}", "%%CHILDREN%%", f"{osc}", f"{slot}"],
                 _DOC,
-                [file_item, strt, end, transpose, velocity_min, velocity_max],
+                [file_item, strt, end, transpose, velocity_min, velocity_max, volume],
                 name=f"STRING_FOR_VARIANT_SLOT_{slot + 1}",
                 available_when="Slot 1 is always available; alternate slots when loaded, or the next empty slot",
             )

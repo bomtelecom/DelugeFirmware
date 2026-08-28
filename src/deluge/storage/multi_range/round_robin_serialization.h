@@ -48,6 +48,7 @@ Error readRoundRobinAlternates(DeserializerT& reader, RangeT* range) {
 				alternateHolder->loopEndPos = 0;
 				alternateHolder->transpose = 0;
 				alternateHolder->setCents(0);
+				alternateHolder->volume = kVariantVolumeUnity;
 			}
 
 			reader.match('{');
@@ -77,6 +78,10 @@ Error readRoundRobinAlternates(DeserializerT& reader, RangeT* range) {
 					range->setVelocityRange(range->rrCount + 1, range->getVelocityRangeMin(range->rrCount + 1),
 					                        (uint8_t)reader.readTagOrAttributeValueInt());
 					reader.exitTag("velocityRangeMax");
+				}
+				else if (!strcmp(tagName, "variantVolume")) {
+					alternateHolder->volume = reader.readTagOrAttributeValueInt();
+					reader.exitTag("variantVolume");
 				}
 				else if (!strcmp(tagName, "zone")) {
 					reader.match('{');

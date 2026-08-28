@@ -137,6 +137,8 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return source_id_; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		Source& source = sound->sources[source_id_];
@@ -144,10 +146,10 @@ public:
 			if (!source.hasAtLeastOneAudioFileLoaded()) {
 				return false;
 			}
-			// Once an alternate variant is loaded, this OSC-level entry would edit the exact same
-			// transpose/cents fields as the new per-variant Transpose item for slot 0, so it steps aside.
-			MultisampleRange* range = getRoundRobinRange(source_id_);
-			return range == nullptr || range->rrCount == 0;
+			// Once any zone on this oscillator has alternates loaded, this OSC-level entry would edit the
+			// exact same transpose/cents fields as the per-variant Transpose item, so it steps aside for
+			// every zone alike - see sample::sourceUsesVariants().
+			return !sourceUsesVariants(source);
 		}
 		if (source.oscType == OscType::WAVETABLE) {
 			return source.hasAtLeastOneAudioFileLoaded();

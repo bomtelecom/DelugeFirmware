@@ -1004,6 +1004,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_VELOCITY_MIN_SHORT, "VMIN"},
         {STRING_FOR_VELOCITY_MAX, "Velocity max"},
         {STRING_FOR_VELOCITY_MAX_SHORT, "VMAX"},
+        {STRING_FOR_VARIANT_VOLUME, "Volume"},
+        {STRING_FOR_VOLUME_SHORT, "VOL"},
     },
 };
 } // namespace deluge::l10n::built_in
