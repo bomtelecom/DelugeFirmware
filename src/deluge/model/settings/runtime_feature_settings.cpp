@@ -209,6 +209,10 @@ void RuntimeFeatureSettings::init() {
 	// Rounded Corners
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
+
+	// Numbered choke groups
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ChokeGroups], STRING_FOR_COMMUNITY_FEATURE_CHOKE_GROUPS,
+	                  "chokeGroups", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {
