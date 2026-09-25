@@ -69,6 +69,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	RoundRobinSampleVariants,
 	RoundedCorners,
 	ShortcutOverlay,
+	ChokeGroups,
 	MaxElement // Keep as boundary
 };
 
