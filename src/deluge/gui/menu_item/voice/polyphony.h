@@ -70,7 +70,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->polyphonic == PolyphonyMode::POLY);
 	}
@@ -136,7 +136,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return deluge::drum::kMaxChokeGroup; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups) && soundEditor.editingKit()
 		       && sound->polyphonic == PolyphonyMode::CHOKE;

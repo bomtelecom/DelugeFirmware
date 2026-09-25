@@ -72,7 +72,7 @@ public:
 	// Only offer the choice when the community feature is on AND turning it on would change the
 	// output - that is, when some choke group holds more than one exportable drum. If no group
 	// does, every drum is rendered on its own either way and there is nothing to choose.
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
 		       && stemExport.currentKitHasBundlingChokeGroup();
 	}
