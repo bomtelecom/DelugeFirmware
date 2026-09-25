@@ -196,7 +196,7 @@ public:
 		return title_buf_;
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
 		    || !isSampleModeSample(modControllable, sourceId_)) {
 			return false;
@@ -298,7 +298,7 @@ public:
 
 	bool shouldEnterSubmenu() override { return false; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_);
 	}
 
@@ -338,7 +338,7 @@ public:
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
 	}
 
@@ -393,7 +393,7 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
 	}
 
@@ -457,7 +457,7 @@ public:
 	// Only meaningful while the zone actually selects by velocity - in every other mode these two
 	// columns would be dead weight on a page that has to page at 5 items. Mode itself only appears
 	// once a zone has an alternate, so a plain single-sample slot shows neither.
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		if (!isSampleModeSample(modControllable, sourceId_) || !variantHolderIsLoaded(sourceId_, slotIndex_)) {
 			return false;
 		}
@@ -528,7 +528,7 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
 	}
 
@@ -580,7 +580,7 @@ public:
 	RoundRobinSlot(l10n::String newName, std::span<MenuItem*> children, uint8_t sourceId, uint8_t slotIndex)
 	    : menu_item::HorizontalMenu(newName, children), sourceId_(sourceId), slotIndex_(slotIndex) {}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_);
 	}
 
@@ -670,7 +670,7 @@ public:
 		        l10n::getView(STRING_FOR_VELOCITY)};
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		if (!isSampleModeSample(modControllable, sourceId_)) {
 			return false;
 		}
