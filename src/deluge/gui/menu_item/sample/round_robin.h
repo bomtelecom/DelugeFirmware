@@ -36,6 +36,8 @@
 #include "storage/audio/audio_file.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
+#include <algorithm>
+#include <cstring>
 
 namespace deluge::gui::menu_item::sample {
 
@@ -432,6 +434,89 @@ private:
 	uint8_t slotIndex_;
 };
 
+// One end of a slot's velocity range for RRMode::Velocity - the [min, max] (1-127) window that
+// decides which slot plays for a given note velocity, the way MPC's Velocity layer-play mode works.
+//
+// The two ends are two separate menu items sitting in adjacent columns (VMIN | VMAX), rather than
+// one two-ended Range. A Range picks which end you're editing with the horizontal encoder, and
+// inside a horizontal menu that encoder pages the menu instead of reaching the item - so a Range
+// placed here cannot be edited at all. A plain Integer per end is edited in place with the select
+// encoder, exactly as the slot's own Transpose is, and each column has room for its three digits.
+//
+// Values are read from and written to the zone on every access, following the same
+// per-(source, slot) pattern as VariantTranspose above.
+class VariantVelocityEdge final : public Integer {
+public:
+	enum class Edge : uint8_t { Min, Max };
+
+	VariantVelocityEdge(l10n::String newName, uint8_t sourceId, uint8_t slotIndex, Edge edge)
+	    : Integer(newName), sourceId_(sourceId), slotIndex_(slotIndex), edge_(edge) {}
+
+	bool isRangeDependent() override { return true; }
+
+	// Only meaningful while the zone actually selects by velocity - in every other mode these two
+	// columns would be dead weight on a page that has to page at 5 items. Mode itself only appears
+	// once a zone has an alternate, so a plain single-sample slot shows neither.
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		if (!isSampleModeSample(modControllable, sourceId_) || !variantHolderIsLoaded(sourceId_, slotIndex_)) {
+			return false;
+		}
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		return range != nullptr && range->rrMode == MultisampleRange::RRMode::Velocity;
+	}
+
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             MultiRange** currentRange) override {
+		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
+	}
+
+	[[nodiscard]] int32_t getMinValue() const override { return kMinVelocity; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxVelocity; }
+
+	// Integer defaults to a knob, which says nothing useful about a velocity threshold. Three digits
+	// at title spacing are 27px, inside the 31px a column gives us.
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(l10n::get(edge_ == Edge::Min ? l10n::String::STRING_FOR_VELOCITY_MIN_SHORT
+		                                          : l10n::String::STRING_FOR_VELOCITY_MAX_SHORT));
+	}
+
+	void readCurrentValue() override {
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		if (range != nullptr) {
+			this->setValue(edge_ == Edge::Min ? range->getVelocityRangeMin(slotIndex_)
+			                                  : range->getVelocityRangeMax(slotIndex_));
+		}
+	}
+
+	// setVelocityRange() takes both ends, so read the other one back off the model and push the
+	// pair. It keeps min <= max itself, and readCurrentValue() picks up any correction next time
+	// either column is drawn.
+	void writeCurrentValue() override {
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		if (range == nullptr) {
+			return;
+		}
+		auto value = (uint8_t)this->getValue();
+		if (edge_ == Edge::Min) {
+			range->setVelocityRange(slotIndex_, value, std::max(value, range->getVelocityRangeMax(slotIndex_)));
+		}
+		else {
+			range->setVelocityRange(slotIndex_, std::min(value, range->getVelocityRangeMin(slotIndex_)), value);
+		}
+		getCurrentInstrument()->beenEdited();
+	}
+
+private:
+	static constexpr int32_t kMinVelocity = 1;
+	static constexpr int32_t kMaxVelocity = 127;
+
+	uint8_t sourceId_;
+	uint8_t slotIndex_;
+	Edge edge_;
+};
+
 // Per-slot level trim, 0-50 with 50 as unity, stored on the slot's own holder right beside the
 // transpose/cents that VariantTranspose edits. Attenuation only: round-robin takes usually need the
 // loud one pulled down, and a boost would have to fight the amplitude headroom limits in
@@ -483,8 +568,11 @@ private:
 	uint8_t slotIndex_;
 };
 
-// Horizontal, icon-based menu for one round-robin slot: [File, Strt, End, Transpose] - the same
-// horizontal/paging mechanics OSC1/OSC2 (submenu::ActualSource) use one level up.
+// Horizontal, icon-based menu for one round-robin slot: [File, Strt, End, Transpose, VMin, VMax, Vol] -
+// the same horizontal/paging mechanics OSC1/OSC2 (submenu::ActualSource) use one level up. Paging
+// overflows onto a second page automatically once a slot has more than 4 items (see
+// HorizontalMenu::preparePaging()), so the velocity columns needed no special-casing; outside
+// RRMode::Velocity they hide themselves and the slot fits back onto one page.
 // slotIndex 0 is the primary sample and is always accessible; slots 1-3 are alternates, guarded so
 // only loaded slots and the next empty slot can be opened.
 class RoundRobinSlot final : public menu_item::HorizontalMenu {
@@ -578,7 +666,8 @@ public:
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
-		return {l10n::getView(STRING_FOR_CYCLE), l10n::getView(STRING_FOR_RANDOM), l10n::getView(STRING_FOR_NO_REPEAT)};
+		return {l10n::getView(STRING_FOR_CYCLE), l10n::getView(STRING_FOR_RANDOM), l10n::getView(STRING_FOR_NO_REPEAT),
+		        l10n::getView(STRING_FOR_VELOCITY)};
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
@@ -609,12 +698,13 @@ public:
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		using enum MultisampleRange::RRMode;
 
 		const auto mode = this->getValue<MultisampleRange::RRMode>();
-		const deluge::hid::display::Icon& icon = mode == MultisampleRange::RRMode::Cycle
-		                                             ? deluge::hid::display::OLED::directionIcon
-		                                             : deluge::hid::display::OLED::diceIcon;
-		const bool reversed = mode == MultisampleRange::RRMode::NoRepeat;
+		const deluge::hid::display::Icon& icon = mode == Cycle      ? deluge::hid::display::OLED::directionIcon
+		                                         : mode == Velocity ? deluge::hid::display::OLED::knobArcIcon
+		                                                            : deluge::hid::display::OLED::diceIcon;
+		const bool reversed = mode == NoRepeat;
 		image.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset, reversed);
 	}
 

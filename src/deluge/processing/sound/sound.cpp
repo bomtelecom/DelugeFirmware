@@ -3545,6 +3545,36 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				reader.exitTag("rrMode");
 			}
 		}
+		// Velocity ranges live in the round-robin alternates table, which overlaps the wavetable holder.
+		// A file carrying them on a wavetable oscillator would have setVelocityRange() allocate that
+		// table and write over the holder, so skip them like any unrecognised tag. See
+		// Source::hasMultisampleRanges().
+		else if (!strcmp(tagName, "velocityRangeMin")) {
+			if (!source->hasMultisampleRanges()) {
+				reader.exitTag(tagName);
+			}
+			else {
+				MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+				if (!range) {
+					return Error::INSUFFICIENT_RAM;
+				}
+				uint8_t min = readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMin);
+				range->setVelocityRange(0, min, range->getVelocityRangeMax(0));
+			}
+		}
+		else if (!strcmp(tagName, "velocityRangeMax")) {
+			if (!source->hasMultisampleRanges()) {
+				reader.exitTag(tagName);
+			}
+			else {
+				MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+				if (!range) {
+					return Error::INSUFFICIENT_RAM;
+				}
+				uint8_t max = readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMax);
+				range->setVelocityRange(0, range->getVelocityRangeMin(0), max);
+			}
+		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
 			reader.match('[');
 			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
@@ -3610,6 +3640,18 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 							else if (!strcmp(tagName, "cents")) {
 								((SampleHolderForVoice*)holder)->setCents(reader.readTagOrAttributeValueInt());
 								reader.exitTag("cents");
+							}
+							else if (!strcmp(tagName, "velocityRangeMin")) {
+								auto* msRange = (MultisampleRange*)tempRange;
+								uint8_t min =
+								    readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMin);
+								msRange->setVelocityRange(0, min, msRange->getVelocityRangeMax(0));
+							}
+							else if (!strcmp(tagName, "velocityRangeMax")) {
+								auto* msRange = (MultisampleRange*)tempRange;
+								uint8_t max =
+								    readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMax);
+								msRange->setVelocityRange(0, msRange->getVelocityRangeMin(0), max);
 							}
 							else if (!strcmp(tagName, "variantVolume")) {
 								((SampleHolderForVoice*)holder)->volume = reader.readTagOrAttributeValueInt();
@@ -3726,6 +3768,12 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			if (range->sampleHolder.cents) {
 				writer.writeAttribute("cents", range->sampleHolder.cents);
 			}
+			if (range->getVelocityRangeMin(0) != MultisampleRange::kDefaultVelocityMin) {
+				writer.writeAttribute("velocityRangeMin", range->getVelocityRangeMin(0));
+			}
+			if (range->getVelocityRangeMax(0) != MultisampleRange::kDefaultVelocityMax) {
+				writer.writeAttribute("velocityRangeMax", range->getVelocityRangeMax(0));
+			}
 			if (range->sampleHolder.volume != kVariantVolumeUnity) {
 				writer.writeAttribute("variantVolume", range->sampleHolder.volume);
 			}
@@ -3764,6 +3812,12 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 					}
 					if (alternateHolder->cents) {
 						writer.writeAttribute("cents", alternateHolder->cents);
+					}
+					if (range->getVelocityRangeMin(a + 1) != MultisampleRange::kDefaultVelocityMin) {
+						writer.writeAttribute("velocityRangeMin", range->getVelocityRangeMin(a + 1));
+					}
+					if (range->getVelocityRangeMax(a + 1) != MultisampleRange::kDefaultVelocityMax) {
+						writer.writeAttribute("velocityRangeMax", range->getVelocityRangeMax(a + 1));
 					}
 					if (alternateHolder->volume != kVariantVolumeUnity) {
 						writer.writeAttribute("variantVolume", alternateHolder->volume);

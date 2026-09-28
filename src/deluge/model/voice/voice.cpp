@@ -254,7 +254,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 						}
 					}
 					else {
-						resolvedHolder = sampleRange->resolveVariant();
+						resolvedHolder = sampleRange->resolveVariant(velocity);
 					}
 					// Compare the holder rather than the slot index: resolveVariant() reports the slot
 					// it picked even when it falls back to the primary because that slot is empty.
