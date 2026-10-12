@@ -33,6 +33,7 @@
 #include "model/drum/choke_group.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -977,6 +978,18 @@ bool StemExport::currentKitHasBundlingChokeGroup() {
 	return bundlingGroups > 0;
 }
 
+/// The export type a kit export runs as, however it was started - the Start menu item and the
+/// SAVE+RECORD shortcut both ask here, so they can't disagree. The EXPORT CHOKE GROUPS toggle stays
+/// set after the community feature is turned off or the kit stops having a group to bundle, so it is
+/// re-checked against both rather than trusted on its own.
+StemExportType StemExport::kitStemExportType() {
+	if (exportChokeGroups && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
+	    && currentKitHasBundlingChokeGroup()) {
+		return StemExportType::CHOKE_GROUP;
+	}
+	return StemExportType::DRUM;
+}
+
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState,
                                         int32_t indexNumber, bool exportStem, SoundDrum* drum, uint8_t chokeGroup) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
@@ -1088,7 +1101,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 		// A choke group spans however many rows share it, scattered anywhere in the kit, so no single
 		// row represents the stem being exported - scrolling to one would just make the display jump
 		// somewhere arbitrary. Reset the horizontal scroll like the other kit case and leave the
-		// vertical position where the user had it; the progress readout names the group.
+		// vertical position where the user had it.
 		currentSong->xScroll[NAVIGATION_CLIP] = 0;
 	}
 }
@@ -1124,7 +1137,9 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 		exportStatus.append(" drums");
 	}
 	else if (stemExportType == StemExportType::CHOKE_GROUP) {
-		exportStatus.append(" choke groups");
+		// The count is files, and only some of them are groups - a drum not bundled with another is a
+		// file of its own - so name what is actually being counted.
+		exportStatus.append(" kit stems");
 	}
 	deluge::hid::display::OLED::drawPermanentPopupLookingText(exportStatus.c_str());
 	deluge::hid::display::OLED::markChanged();
