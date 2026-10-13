@@ -69,6 +69,8 @@ file(GLOB_RECURSE deluge_SOURCES
         # For iterance migration tests (links against the real iterancePresets[]
         # from lookuptables.cpp, already included above)
         ../../src/deluge/model/iterance/iterance_migration.cpp
+        # For waveform peak math tests
+        ../../src/deluge/gui/waveform/waveform_peak_math.cpp
 )
 
 add_executable(UnitTests
@@ -95,6 +97,7 @@ add_executable(UnitTests
         notes_state_tests.cpp
         sample_velocity_parse_tests.cpp
         iterance_migration_tests.cpp
+        waveform_peak_math_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

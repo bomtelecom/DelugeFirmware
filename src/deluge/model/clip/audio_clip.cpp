@@ -156,10 +156,13 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 		inputChannel = ((AudioOutput*)output)->inputChannel;
 		outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
-		numChannels =
-		    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO)
-		        ? 2
-		        : 1;
+		// A single USB channel records as one channel, like a single line input.
+		numChannels = (usbReturnMonoChannelOf(inputChannel) != 0)
+		                  ? 1
+		                  : ((inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
+		                      || inputChannel == AudioInputChannel::STEREO)
+		                         ? 2
+		                         : 1);
 		shouldNormalize =
 		    (inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION); // if reading from input we need this
 	}
@@ -1003,7 +1006,7 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 	}
 }
 
-// Returns false if can't because in card routine
+// Returns false if some of the waveform is still waiting on the card, so the row should be rendered again later
 bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
                                   int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
                                   bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
@@ -1020,6 +1023,8 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 		sample = ((Sample*)sampleHolder.audioFile);
 	}
 
+	bool success = true;
+
 	if (sample) {
 
 		int64_t xScrollSamples;
@@ -1029,14 +1034,8 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 		RGB rgb = getColour();
 
-		bool success =
-		    waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData, recorder, rgb,
-		                                       sampleControls.isCurrentlyReversed(), xStart, xEnd);
-
-		if (!success) {
-			// If card being accessed and waveform would have to be re-examined, come back later
-			return false;
-		}
+		success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData, recorder,
+		                                             rgb, sampleControls.isCurrentlyReversed(), xStart, xEnd);
 	}
 
 	else {
@@ -1048,7 +1047,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen, false);
 	}
 
-	return true;
+	return success;
 }
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
