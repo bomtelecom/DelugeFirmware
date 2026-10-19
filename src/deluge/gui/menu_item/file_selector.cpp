@@ -60,19 +60,15 @@ bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whi
 	const auto sound = static_cast<Sound*>(modControllable);
 	const Source& source = sound->sources[sourceId_];
 
-	if (source.oscType == OscType::WAVETABLE) {
-		return sound->getSynthMode() != SynthMode::FM;
-	}
-
-	if (sound->getSynthMode() != SynthMode::SUBTRACTIVE || source.oscType != OscType::SAMPLE) {
-		return false;
-	}
+	// Browsing can load a sample even when the oscillator currently uses a synth waveform.
+	const bool canBrowse = sound->getSynthMode() == SynthMode::SUBTRACTIVE
+	                       || (sound->getSynthMode() == SynthMode::RINGMOD && source.oscType == OscType::WAVETABLE);
 
 	// Once any zone on this oscillator has alternates loaded, loading into slot 1 here would be a
 	// second path to the exact same data as the per-variant File item, so this OSC-level entry steps
 	// aside - for every zone alike, so the menu keeps the same shape whichever zone you're on. See
 	// sample::sourceUsesVariants().
-	return !sample::sourceUsesVariants(sound->sources[sourceId_]);
+	return canBrowse && !sample::sourceUsesVariants(sound->sources[sourceId_]);
 }
 MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                            ::MultiRange** currentRange) {
@@ -83,11 +79,7 @@ MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio*
 
 	Sound* sound = static_cast<Sound*>(modControllable);
 
-	bool can =
-	    (sound->getSynthMode() == SynthMode::SUBTRACTIVE
-	     || (sound->getSynthMode() == SynthMode::RINGMOD && sound->sources[sourceId_].oscType == OscType::WAVETABLE));
-
-	if (!can) {
+	if (!isRelevant(modControllable, whichThing)) {
 		return MenuPermission::NO;
 	}
 

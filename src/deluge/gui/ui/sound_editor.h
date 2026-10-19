@@ -127,7 +127,6 @@ public:
 
 	bool shouldGoUpOneLevelOnBegin;
 	bool secondLayerShortcutsToggled;
-	bool secondLayerModSourceShortcutsToggled;
 
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);
@@ -215,6 +214,7 @@ private:
 
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
+	bool source_shortcut_blink_alternates[2][kDisplayHeight];
 };
 
 extern SoundEditor soundEditor;
