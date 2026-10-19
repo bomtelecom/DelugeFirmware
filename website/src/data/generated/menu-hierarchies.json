@@ -2280,7 +2280,7 @@
                   "children": []
                 }
               ],
-              "tag": "c1.0"
+              "tag": "c1.3"
             }
           ]
         },
@@ -3376,7 +3376,8 @@
               "token": "STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY",
               "oled": "Shortcut Overlay",
               "code": "OVER",
-              "children": []
+              "children": [],
+              "tag": "c1.3"
             },
             {
               "varName": "menuChokeGroups",
@@ -3394,6 +3395,14 @@
           "token": "STRING_FOR_BATTERY_LEVEL",
           "oled": "Battery level",
           "code": "BATT",
+          "children": [],
+          "tag": "c1.3"
+        },
+        {
+          "varName": "voiceUsageMenu",
+          "token": "STRING_FOR_VOICE_USAGE",
+          "oled": "Voice usage",
+          "code": "VOIC",
           "children": [],
           "tag": "c1.3"
         },
@@ -17557,7 +17566,8 @@
               "token": "STRING_FOR_RENAME_DRUM",
               "oled": "Rename drum",
               "code": "DRUM",
-              "children": []
+              "children": [],
+              "tag": "c1.3"
             },
             {
               "varName": "sample0RecorderMenu",
@@ -17573,7 +17583,8 @@
               "code": "REC1",
               "children": []
             }
-          ]
+          ],
+          "tag": "c1.3"
         },
         {
           "varName": "soundMasterMenu",
@@ -25738,7 +25749,8 @@
               "token": "STRING_FOR_RENAME_DRUM",
               "oled": "Rename drum",
               "code": "DRUM",
-              "children": []
+              "children": [],
+              "tag": "c1.3"
             },
             {
               "varName": "sample0RecorderMenu",
@@ -25754,7 +25766,8 @@
               "code": "REC1",
               "children": []
             }
-          ]
+          ],
+          "tag": "c1.3"
         },
         {
           "varName": "arpMenuMIDIOrCV",
@@ -26535,7 +26548,8 @@
               "token": "STRING_FOR_RENAME_DRUM",
               "oled": "Rename drum",
               "code": "DRUM",
-              "children": []
+              "children": [],
+              "tag": "c1.3"
             },
             {
               "varName": "sample0RecorderMenu",
@@ -26551,7 +26565,8 @@
               "code": "REC1",
               "children": []
             }
-          ]
+          ],
+          "tag": "c1.3"
         },
         {
           "varName": "arpMenuMIDIOrCV",
@@ -30377,5 +30392,5 @@
     "noteRowEditorMenu": "noteRowEditorRootMenu",
     "songClipSettingsMenu": "songClipSettingsMenu"
   },
-  "generatedAt": "2026-09-25T23:58:44.204Z"
+  "generatedAt": "2026-10-19T10:49:06.150Z"
 }

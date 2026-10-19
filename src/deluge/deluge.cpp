@@ -559,7 +559,7 @@ void registerTasks() {
 	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
 	midiEngine.routine_task_id = addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002,
 	                                              "midi routine", RESOURCE_SD | RESOURCE_USB);
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
+	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(false); }, p++, 0.0001, 0.0001, 0.0002,
 	                 "load clusters", RESOURCE_NONE);
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
@@ -690,10 +690,11 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	// SPI for CV
+	// SPI for CV / OLED
 	R_RSPI_Create(SPI_CHANNEL_CV,
-	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
-	                                   // datasheet's spec of 100ns (10MHz).
+	              have_oled ? 4000000 // We used to use 10MHz, which is what the OEL9M0087-W-E OLED datasheet specified
+	                                  // (well, 100ns). But as of the 2026 batch of OLEDs, despite them being the same
+	                                  // model, 8.5MHz and higher causes glitching. 4MHz appears safe.
 	                        : 30000000,
 	              0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
@@ -904,6 +905,12 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
+	// Long after resetprg.c has used the BSC to set up SDRAM, which shares this mapping
+	L2CacheMapRegistersAsDevice();
+	// Stealables are mostly streamed sample data, which L2 gains little from, and DMA writes Clusters there, which
+	// would otherwise need slow L2 maintenance. Before unlocking, so L2 isn't holding any of it.
+	L2CacheMapRangeInnerOnly(GeneralMemoryAllocator::get().stealableSectionsStart,
+	                         GeneralMemoryAllocator::get().stealableSectionsEnd);
 	L2CacheUnlockData();
 	sdRoutineLock = false; // Allow SD routine to start happening
 
