@@ -218,7 +218,6 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in
 		// other cases.
 		guides[s].audioFileHolder = nullptr;
-		guides[s].isRoundRobinAlternate = false;
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
 		if (sourceEverActive) [[likely]] {
@@ -256,9 +255,6 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 					else {
 						resolvedHolder = sampleRange->resolveVariant(velocity);
 					}
-					// Compare the holder rather than the slot index: resolveVariant() reports the slot
-					// it picked even when it falls back to the primary because that slot is empty.
-					guides[s].isRoundRobinAlternate = (resolvedHolder != &sampleRange->sampleHolder);
 					holder = static_cast<AudioFileHolder*>(resolvedHolder);
 				}
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
@@ -1760,7 +1756,7 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) cons
 bool Voice::adjustPitch(uint32_t& phaseIncrement, int32_t adjustment) {
 	if (adjustment != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(phaseIncrement, adjustment);
-		if (output >= (1 << 24)) {
+		if (output >= (1 << 23)) {
 			return false;
 		}
 		phaseIncrement = output << 8;
@@ -2151,8 +2147,8 @@ pitchTooHigh:
 					    >> 24;
 				}
 
-				LateStartAttemptStatus result =
-				    voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
+				LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate,
+				                                                                    getPriorityRating(), numSamples);
 
 				if (result == LateStartAttemptStatus::FAILURE) {
 					goto instantUnassign;

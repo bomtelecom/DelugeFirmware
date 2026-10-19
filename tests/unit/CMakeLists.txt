@@ -71,6 +71,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/iterance/iterance_migration.cpp
         # For waveform peak math tests
         ../../src/deluge/gui/waveform/waveform_peak_math.cpp
+        # For MIDI message / queue tests
+        ../../src/deluge/model/midi/message.cpp
+        ../../src/deluge/io/midi/midi_queue.cpp
 )
 
 add_executable(UnitTests
@@ -98,6 +101,7 @@ add_executable(UnitTests
         sample_velocity_parse_tests.cpp
         iterance_migration_tests.cpp
         waveform_peak_math_tests.cpp
+        midi_queue_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

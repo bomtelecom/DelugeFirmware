@@ -95,8 +95,6 @@ extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
 extern Polarity defaultPatchCablePolarity;
 
-extern GlobalMIDICommand defaultLoopRecordingCommand;
-
 extern bool defaultUseSharps;
 
 void readSettings();

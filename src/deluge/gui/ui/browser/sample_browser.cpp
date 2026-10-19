@@ -514,7 +514,8 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 }
 
 bool SampleBrowser::canImportWholeKit() {
-	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
+	// Folder-to-kit and slicing rebuild drums, so never from a variant slot's browser.
+	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0 && targetRoundRobinSlot == 0
 	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
 	        && (!getCurrentKit()->firstDrum->next));
 }
@@ -955,6 +956,15 @@ removeLoadingAnimationAndGetOut:
 
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
 		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
+
+		// A variant slot can only hold a sample: forcing WAVETABLE would convert the whole oscillator
+		// and destroy the zone's other variants. The load menu hides those options for slots 2-4;
+		// this catches any other route.
+		if (makeWaveTableWorkAtAllCosts && targetRoundRobinSlot > 0) {
+			display->removeLoadingAnimation();
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			return false;
+		}
 
 		int32_t numTypesTried = 0;
 
@@ -1961,11 +1971,9 @@ skipOctaveCorrection:
 			range = (MultisampleRange*)soundEditor.currentMultiRange;
 		}
 		else {
-#if ALPHA_OR_BETA_VERSION
 			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
 				FREEZE_WITH_ERROR("E431");
 			}
-#endif
 			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
 			    rangeIndex); // We know it's gonna succeed
 		}

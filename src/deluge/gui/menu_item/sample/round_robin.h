@@ -276,9 +276,11 @@ public:
 		// The picker calls straight back here once it has a zone, and that call arrives while the
 		// picker is still the current screen - which is how the two are told apart. Kits are left
 		// alone: they have always edited their first zone without a picker.
+		//
+		// Don't clear *currentRange here: this check also runs when the menu only scrolls past VARIANTS
+		// or comes BACK to it, and every caller that opens the picker clears the zone itself.
 		if (!soundEditor.editingKit() && sound->sources[sourceId_].ranges.getNumElements() > 1
 		    && !soundEditor.inNoteRangePicker()) {
-			*currentRange = nullptr;
 			return MenuPermission::MUST_SELECT_RANGE;
 		}
 
@@ -297,6 +299,11 @@ public:
 	    : MenuItem(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
 
 	bool shouldEnterSubmenu() override { return false; }
+
+	// Loads into the zone the slot page is titled with. Being range-dependent is what makes
+	// HorizontalMenu::beginSession() keep the editor's zone while FILE is under the cursor, as it
+	// already does for START, END, TRANSPOSE and VOL on the same page.
+	bool isRangeDependent() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_);
@@ -362,6 +369,13 @@ public:
 		}
 	}
 
+	// However the marker editor is left - BACK, a shortcut pad, exiting the menu - auditioning goes back
+	// to the normal cycle. The slot page sets it again when it resumes.
+	void endSession() override {
+		LoopPoint::endSession();
+		MultisampleRange::clearAuditionSlot();
+	}
+
 protected:
 	uint8_t slotIndex_;
 };
@@ -420,6 +434,10 @@ public:
 			computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 			holder->transpose = transpose;
 			holder->setCents(cents);
+			// Retune notes that are already sounding, as the oscillator-level TRANSPOSE does.
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 			getCurrentInstrument()->beenEdited();
 		}
 	}
@@ -624,6 +642,13 @@ public:
 		soundEditor.setCurrentSource(sourceId_);
 		// While this slot's menu is open, auditioning plays this exact slot (without advancing the cycle).
 		MultisampleRange::setAuditionSlot(getRoundRobinRange(sourceId_), slotIndex_);
+	}
+
+	// However this page is left - BACK, a shortcut pad, exiting the menu - auditioning goes back to the
+	// normal cycle. beginSession() sets it again on return.
+	void endSession() override {
+		HorizontalMenu::endSession();
+		MultisampleRange::clearAuditionSlot();
 	}
 
 	void deletePress() override { clearAlternateSlotFromMenu(sourceId_, slotIndex_); }
