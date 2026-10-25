@@ -29,7 +29,6 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/engines/usb_audio_stream.h"
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
@@ -209,34 +208,21 @@ renderEnvelope:
 	                                     ? std::span{reinterpret_cast<StereoSample*>(bufferToTransferTo), render.size()}
 	                                     : render;
 
-	// Line-input monitoring is suppressed until the codec ADC has settled after power-on, then faded in (issue
-	// #4517) - otherwise its power-on transient gets passed straight through to the output.
+	// add in the monitored audio if in sampler or looper mode. Suppress until the codec ADC has settled after
+	// power-on, then fade it in (issue #4517) - otherwise its power-on transient gets passed straight through to the
+	// output.
 	q31_t const monitoring_gain_end = AudioEngine::getInputMonitoringGain(render.size());
-
-	// Audio arriving over USB as this track's input, rendered through the track like a line input. Reading it here
-	// also takes that pair off the song's own mix, which is summed later.
-	if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
-	    && isUsbReturnInput(inputChannel)) {
+	if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
+	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		const uint32_t monoChannel = usbReturnMonoChannelOf(inputChannel);
-		if (monoChannel != 0) {
-			deluge::processing::engines::USBAudioStream::readReturnChannel(
-			    monoChannel, output.data(), (uint32_t)output.size(), amplitudeAtStart, amplitudeAtEnd);
-		}
-		else {
-			deluge::processing::engines::USBAudioStream::readReturnPair(usbReturnPairOf(inputChannel), output.data(),
-			                                                            (uint32_t)output.size(), amplitudeAtStart,
-			                                                            amplitudeAtEnd);
-		}
-	}
-
-	// add in the monitored audio if in sampler or looper mode
-	else if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
-	         && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
-		rendered = true;
-		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::i2sRXBufferPos;
+		int32_t const* __restrict__ input_ptr = AudioEngine::getInputReadPos(inputChannel);
+		int32_t const* const input_end = AudioEngine::getInputBufferEnd(inputChannel);
 
 		AudioInputChannel input_channel = this->inputChannel;
+		if (input_channel == AudioInputChannel::USB) {
+			input_channel = AudioInputChannel::STEREO; // Just a stereo input, from a different buffer
+			AudioEngine::usbInputMonitoredByTrack = true;
+		}
 		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels
 		}
@@ -285,7 +271,7 @@ renderEnvelope:
 			}
 
 			input_ptr += NUM_MONO_INPUT_CHANNELS;
-			if (input_ptr >= getRxBufferEnd()) {
+			if (input_ptr >= input_end) {
 				input_ptr -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}

@@ -1203,6 +1203,9 @@ char const* inputChannelToString(AudioInputChannel inputChannel) {
 	case AudioInputChannel::BALANCED:
 		return "balanced";
 
+	case AudioInputChannel::USB:
+		return "usb";
+
 	case AudioInputChannel::MIX:
 		return "mix";
 
@@ -1211,24 +1214,6 @@ char const* inputChannelToString(AudioInputChannel inputChannel) {
 
 	case AudioInputChannel::SPECIFIC_OUTPUT:
 		return "specificTrack";
-
-	case AudioInputChannel::USB_1:
-		return "usb1";
-
-	case AudioInputChannel::USB_2:
-		return "usb2";
-
-	case AudioInputChannel::USB_3:
-		return "usb3";
-
-	case AudioInputChannel::USB_4:
-		return "usb4";
-
-	case AudioInputChannel::USB_1_2:
-		return "usb12";
-
-	case AudioInputChannel::USB_3_4:
-		return "usb34";
 
 	default: // AudioInputChannel::NONE
 		return "none";
@@ -1248,6 +1233,9 @@ AudioInputChannel stringToInputChannel(char const* string) {
 	else if (!strcmp(string, "balanced")) {
 		return AudioInputChannel::BALANCED;
 	}
+	else if (!strcmp(string, "usb")) {
+		return AudioInputChannel::USB;
+	}
 	else if (!strcmp(string, "mix")) {
 		return AudioInputChannel::MIX;
 	}
@@ -1256,24 +1244,6 @@ AudioInputChannel stringToInputChannel(char const* string) {
 	}
 	else if (!strcmp(string, "specificTrack")) {
 		return AudioInputChannel::SPECIFIC_OUTPUT;
-	}
-	else if (!strcmp(string, "usb1")) {
-		return AudioInputChannel::USB_1;
-	}
-	else if (!strcmp(string, "usb2")) {
-		return AudioInputChannel::USB_2;
-	}
-	else if (!strcmp(string, "usb3")) {
-		return AudioInputChannel::USB_3;
-	}
-	else if (!strcmp(string, "usb4")) {
-		return AudioInputChannel::USB_4;
-	}
-	else if (!strcmp(string, "usb12")) {
-		return AudioInputChannel::USB_1_2;
-	}
-	else if (!strcmp(string, "usb34")) {
-		return AudioInputChannel::USB_3_4;
 	}
 
 	else {

@@ -605,7 +605,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 								if (result == MenuPermission::MUST_SELECT_RANGE) {
 									// The note-range picker operates on currentSource. Reached through
 									// menu navigation alone (the shortcut-pad path pins the source in
-									// beginSessionForItem() instead), currentSource may still point at
+									// setup() instead), currentSource may still point at
 									// the other oscillator - pin it to the item's own source first.
 									int32_t rangeSourceIndex = newItem->getSourceIndexForRangeSelection();
 									if (rangeSourceIndex >= 0 && currentSound != nullptr) {
@@ -1071,6 +1071,12 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 
 	resetSourceBlinks();
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+
+	// The shortcut overlay depends on the selected item, so refresh it for selection changes that don't come from
+	// a pad press (e.g. SYNTH / KIT / MIDI / CV buttons in horizontal menus)
+	if (should_render_shortcut_overlay() || haveRenderedPads) {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
 
 	if (!inSettingsMenu()
 	    && !util::one_of<MenuItem*>(currentItem,

@@ -18,6 +18,7 @@
 #include "storage/flash_storage.h"
 #include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
+#include "drivers/usb/usb_audio.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
@@ -29,7 +30,6 @@
 #include "model/scale/preset_scales.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
-#include "processing/engines/usb_audio_stream.h"
 #include "processing/metronome/metronome.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -217,9 +217,11 @@ enum Entries {
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
-199: usbAudioReturnPair + 1 (0 = never written)
-200: usbAudioReturnLevel + 1 (0 = never written)
-201: usbAudioCompensationMs
+196: screensaver mode
+197: screensaver timeout minutes
+198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
+199: USB input not mixed to outputs (usb_audio::directMonitoring) - stored inverted, so it defaults to on
+200: USB audio output source (usb_audio::OutputSource)
 */
 
 uint8_t defaultScale;
@@ -266,9 +268,6 @@ bool highCPUUsageIndicator;
 uint8_t defaultHoldTime;
 ScreensaverMode screensaverMode;
 uint8_t screensaverTimeoutMinutes;
-uint8_t usbAudioReturnPair;
-uint8_t usbAudioReturnLevel;
-uint8_t usbAudioCompensationMs;
 int32_t holdTime;
 
 uint8_t defaultSwingInterval;
@@ -291,6 +290,8 @@ ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::O
 Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
 bool defaultUseSharps = true;
+
+bool usbAudioEnabled = true;
 
 void resetSettings() {
 
@@ -385,9 +386,6 @@ void resetSettings() {
 
 	screensaverMode = kDefaultScreensaverMode;
 	screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
-	usbAudioReturnPair = 1;
-	usbAudioReturnLevel = deluge::processing::engines::USBAudioStream::kReturnLevelDefault;
-	usbAudioCompensationMs = 0;
 
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
@@ -402,6 +400,10 @@ void resetSettings() {
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 	defaultUseSharps = true;
+
+	usbAudioEnabled = true;
+	usb_audio::directMonitoring = true;
+	usb_audio::outputSource = usb_audio::OutputSource::MAIN_MIX;
 }
 
 void factoryReset(bool showPopup) {
@@ -880,18 +882,11 @@ void readSettings() {
 		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
 	}
 
-	{
-		using deluge::processing::engines::USBAudioStream;
-		usbAudioReturnPair =
-		    (buffer[199] == 0 || buffer[199] > USBAudioStream::numReturnPairs() + 1) ? 1 : (uint8_t)(buffer[199] - 1);
-		usbAudioReturnLevel = (buffer[200] == 0 || buffer[200] > USBAudioStream::kReturnLevelMax + 1)
-		                          ? (uint8_t)USBAudioStream::kReturnLevelDefault
-		                          : (uint8_t)(buffer[200] - 1);
-		usbAudioCompensationMs = (buffer[201] > USBAudioStream::kCompensationMaxMs) ? 0 : buffer[201];
-		USBAudioStream::setMasterReturnPair(usbAudioReturnPair);
-		USBAudioStream::setReturnLevel(usbAudioReturnLevel);
-		USBAudioStream::setCompensationMs(usbAudioCompensationMs);
-	}
+	usbAudioEnabled = (buffer[198] != 1);
+	usb_audio::directMonitoring = (buffer[199] != 1);
+	usb_audio::outputSource = (buffer[200] < usb_audio::kNumOutputSources)
+	                              ? static_cast<usb_audio::OutputSource>(buffer[200])
+	                              : usb_audio::OutputSource::MAIN_MIX;
 }
 
 /// Sanity-check the pre-c1.3 MIDI-follow block (bytes 126-145) before migrating it. Same checks the deleted
@@ -1159,9 +1154,10 @@ void writeSettings() {
 
 	buffer[196] = util::to_underlying(screensaverMode);
 	buffer[197] = screensaverTimeoutMinutes;
-	buffer[199] = (uint8_t)(usbAudioReturnPair + 1);
-	buffer[200] = (uint8_t)(usbAudioReturnLevel + 1);
-	buffer[201] = usbAudioCompensationMs;
+
+	buffer[198] = usbAudioEnabled ? 0 : 1;
+	buffer[199] = usb_audio::directMonitoring ? 0 : 1;
+	buffer[200] = util::to_underlying(usb_audio::outputSource);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
