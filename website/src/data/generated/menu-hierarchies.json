@@ -11396,6 +11396,63 @@
               "children": []
             },
             {
+              "varName": "source0TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "source0WaveIndexMenu",
+              "token": "STRING_FOR_WAVE_INDEX",
+              "oled": "Wave-index",
+              "code": "Wave-index",
+              "children": []
+            },
+            {
+              "varName": "osc0PulseWidthMenu",
+              "token": "STRING_FOR_PULSE_WIDTH",
+              "oled": "Pulse Width",
+              "code": "Pulse Width",
+              "children": []
+            },
+            {
+              "varName": "source0FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "Feedback",
+              "code": "Feedback",
+              "children": []
+            },
+            {
+              "varName": "osc0PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            },
+            {
+              "varName": "sample0ReverseMenu",
+              "token": "STRING_FOR_REVERSE",
+              "oled": "Reverse",
+              "code": "Reverse",
+              "children": [
+                {
+                  "varName": "virtualToggle_sample0ReverseMenu_0",
+                  "token": "STRING_FOR_DISABLED",
+                  "oled": "Disabled",
+                  "code": "OFF",
+                  "children": []
+                },
+                {
+                  "varName": "virtualToggle_sample0ReverseMenu_1",
+                  "token": "STRING_FOR_ENABLED",
+                  "oled": "Enabled",
+                  "code": "ON",
+                  "children": []
+                }
+              ]
+            },
+            {
               "varName": "sample0RoundRobinMenu",
               "token": "STRING_FOR_VARIANTS",
               "oled": "Variants",
@@ -11667,63 +11724,6 @@
                 }
               ],
               "tag": "c1.3"
-            },
-            {
-              "varName": "source0TransposeMenu",
-              "token": "STRING_FOR_TRANSPOSE",
-              "oled": "Transpose",
-              "code": "Transpose",
-              "children": []
-            },
-            {
-              "varName": "source0WaveIndexMenu",
-              "token": "STRING_FOR_WAVE_INDEX",
-              "oled": "Wave-index",
-              "code": "Wave-index",
-              "children": []
-            },
-            {
-              "varName": "osc0PulseWidthMenu",
-              "token": "STRING_FOR_PULSE_WIDTH",
-              "oled": "Pulse Width",
-              "code": "Pulse Width",
-              "children": []
-            },
-            {
-              "varName": "source0FeedbackMenu",
-              "token": "STRING_FOR_FEEDBACK",
-              "oled": "Feedback",
-              "code": "Feedback",
-              "children": []
-            },
-            {
-              "varName": "osc0PhaseMenu",
-              "token": "STRING_FOR_RETRIGGER_PHASE",
-              "oled": "Retrigger phase",
-              "code": "Retrigger phase",
-              "children": []
-            },
-            {
-              "varName": "sample0ReverseMenu",
-              "token": "STRING_FOR_REVERSE",
-              "oled": "Reverse",
-              "code": "Reverse",
-              "children": [
-                {
-                  "varName": "virtualToggle_sample0ReverseMenu_0",
-                  "token": "STRING_FOR_DISABLED",
-                  "oled": "Disabled",
-                  "code": "OFF",
-                  "children": []
-                },
-                {
-                  "varName": "virtualToggle_sample0ReverseMenu_1",
-                  "token": "STRING_FOR_ENABLED",
-                  "oled": "Enabled",
-                  "code": "ON",
-                  "children": []
-                }
-              ]
             },
             {
               "varName": "sample0RepeatMenu",
@@ -13884,6 +13884,63 @@
               "children": []
             },
             {
+              "varName": "source1TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "source1WaveIndexMenu",
+              "token": "STRING_FOR_WAVE_INDEX",
+              "oled": "Wave-index",
+              "code": "Wave-index",
+              "children": []
+            },
+            {
+              "varName": "osc1PulseWidthMenu",
+              "token": "STRING_FOR_PULSE_WIDTH",
+              "oled": "Pulse Width",
+              "code": "Pulse Width",
+              "children": []
+            },
+            {
+              "varName": "source1FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "Feedback",
+              "code": "Feedback",
+              "children": []
+            },
+            {
+              "varName": "osc1PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            },
+            {
+              "varName": "sample1ReverseMenu",
+              "token": "STRING_FOR_REVERSE",
+              "oled": "Reverse",
+              "code": "Reverse",
+              "children": [
+                {
+                  "varName": "virtualToggle_sample1ReverseMenu_0",
+                  "token": "STRING_FOR_DISABLED",
+                  "oled": "Disabled",
+                  "code": "OFF",
+                  "children": []
+                },
+                {
+                  "varName": "virtualToggle_sample1ReverseMenu_1",
+                  "token": "STRING_FOR_ENABLED",
+                  "oled": "Enabled",
+                  "code": "ON",
+                  "children": []
+                }
+              ]
+            },
+            {
               "varName": "sample1RoundRobinMenu",
               "token": "STRING_FOR_VARIANTS",
               "oled": "Variants",
@@ -14155,63 +14212,6 @@
                 }
               ],
               "tag": "c1.3"
-            },
-            {
-              "varName": "source1TransposeMenu",
-              "token": "STRING_FOR_TRANSPOSE",
-              "oled": "Transpose",
-              "code": "Transpose",
-              "children": []
-            },
-            {
-              "varName": "source1WaveIndexMenu",
-              "token": "STRING_FOR_WAVE_INDEX",
-              "oled": "Wave-index",
-              "code": "Wave-index",
-              "children": []
-            },
-            {
-              "varName": "osc1PulseWidthMenu",
-              "token": "STRING_FOR_PULSE_WIDTH",
-              "oled": "Pulse Width",
-              "code": "Pulse Width",
-              "children": []
-            },
-            {
-              "varName": "source1FeedbackMenu",
-              "token": "STRING_FOR_FEEDBACK",
-              "oled": "Feedback",
-              "code": "Feedback",
-              "children": []
-            },
-            {
-              "varName": "osc1PhaseMenu",
-              "token": "STRING_FOR_RETRIGGER_PHASE",
-              "oled": "Retrigger phase",
-              "code": "Retrigger phase",
-              "children": []
-            },
-            {
-              "varName": "sample1ReverseMenu",
-              "token": "STRING_FOR_REVERSE",
-              "oled": "Reverse",
-              "code": "Reverse",
-              "children": [
-                {
-                  "varName": "virtualToggle_sample1ReverseMenu_0",
-                  "token": "STRING_FOR_DISABLED",
-                  "oled": "Disabled",
-                  "code": "OFF",
-                  "children": []
-                },
-                {
-                  "varName": "virtualToggle_sample1ReverseMenu_1",
-                  "token": "STRING_FOR_ENABLED",
-                  "oled": "Enabled",
-                  "code": "ON",
-                  "children": []
-                }
-              ]
             },
             {
               "varName": "sample1RepeatMenu",
@@ -22135,6 +22135,63 @@
               "children": []
             },
             {
+              "varName": "source0TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "source0WaveIndexMenu",
+              "token": "STRING_FOR_WAVE_INDEX",
+              "oled": "Wave-index",
+              "code": "Wave-index",
+              "children": []
+            },
+            {
+              "varName": "osc0PulseWidthMenu",
+              "token": "STRING_FOR_PULSE_WIDTH",
+              "oled": "Pulse Width",
+              "code": "Pulse Width",
+              "children": []
+            },
+            {
+              "varName": "source0FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "Feedback",
+              "code": "Feedback",
+              "children": []
+            },
+            {
+              "varName": "osc0PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            },
+            {
+              "varName": "sample0ReverseMenu",
+              "token": "STRING_FOR_REVERSE",
+              "oled": "Reverse",
+              "code": "Reverse",
+              "children": [
+                {
+                  "varName": "virtualToggle_sample0ReverseMenu_0",
+                  "token": "STRING_FOR_DISABLED",
+                  "oled": "Disabled",
+                  "code": "OFF",
+                  "children": []
+                },
+                {
+                  "varName": "virtualToggle_sample0ReverseMenu_1",
+                  "token": "STRING_FOR_ENABLED",
+                  "oled": "Enabled",
+                  "code": "ON",
+                  "children": []
+                }
+              ]
+            },
+            {
               "varName": "sample0RoundRobinMenu",
               "token": "STRING_FOR_VARIANTS",
               "oled": "Variants",
@@ -22406,63 +22463,6 @@
                 }
               ],
               "tag": "c1.3"
-            },
-            {
-              "varName": "source0TransposeMenu",
-              "token": "STRING_FOR_TRANSPOSE",
-              "oled": "Transpose",
-              "code": "Transpose",
-              "children": []
-            },
-            {
-              "varName": "source0WaveIndexMenu",
-              "token": "STRING_FOR_WAVE_INDEX",
-              "oled": "Wave-index",
-              "code": "Wave-index",
-              "children": []
-            },
-            {
-              "varName": "osc0PulseWidthMenu",
-              "token": "STRING_FOR_PULSE_WIDTH",
-              "oled": "Pulse Width",
-              "code": "Pulse Width",
-              "children": []
-            },
-            {
-              "varName": "source0FeedbackMenu",
-              "token": "STRING_FOR_FEEDBACK",
-              "oled": "Feedback",
-              "code": "Feedback",
-              "children": []
-            },
-            {
-              "varName": "osc0PhaseMenu",
-              "token": "STRING_FOR_RETRIGGER_PHASE",
-              "oled": "Retrigger phase",
-              "code": "Retrigger phase",
-              "children": []
-            },
-            {
-              "varName": "sample0ReverseMenu",
-              "token": "STRING_FOR_REVERSE",
-              "oled": "Reverse",
-              "code": "Reverse",
-              "children": [
-                {
-                  "varName": "virtualToggle_sample0ReverseMenu_0",
-                  "token": "STRING_FOR_DISABLED",
-                  "oled": "Disabled",
-                  "code": "OFF",
-                  "children": []
-                },
-                {
-                  "varName": "virtualToggle_sample0ReverseMenu_1",
-                  "token": "STRING_FOR_ENABLED",
-                  "oled": "Enabled",
-                  "code": "ON",
-                  "children": []
-                }
-              ]
             },
             {
               "varName": "sample0RepeatMenu",
@@ -24623,6 +24623,63 @@
               "children": []
             },
             {
+              "varName": "source1TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "source1WaveIndexMenu",
+              "token": "STRING_FOR_WAVE_INDEX",
+              "oled": "Wave-index",
+              "code": "Wave-index",
+              "children": []
+            },
+            {
+              "varName": "osc1PulseWidthMenu",
+              "token": "STRING_FOR_PULSE_WIDTH",
+              "oled": "Pulse Width",
+              "code": "Pulse Width",
+              "children": []
+            },
+            {
+              "varName": "source1FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "Feedback",
+              "code": "Feedback",
+              "children": []
+            },
+            {
+              "varName": "osc1PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            },
+            {
+              "varName": "sample1ReverseMenu",
+              "token": "STRING_FOR_REVERSE",
+              "oled": "Reverse",
+              "code": "Reverse",
+              "children": [
+                {
+                  "varName": "virtualToggle_sample1ReverseMenu_0",
+                  "token": "STRING_FOR_DISABLED",
+                  "oled": "Disabled",
+                  "code": "OFF",
+                  "children": []
+                },
+                {
+                  "varName": "virtualToggle_sample1ReverseMenu_1",
+                  "token": "STRING_FOR_ENABLED",
+                  "oled": "Enabled",
+                  "code": "ON",
+                  "children": []
+                }
+              ]
+            },
+            {
               "varName": "sample1RoundRobinMenu",
               "token": "STRING_FOR_VARIANTS",
               "oled": "Variants",
@@ -24894,63 +24951,6 @@
                 }
               ],
               "tag": "c1.3"
-            },
-            {
-              "varName": "source1TransposeMenu",
-              "token": "STRING_FOR_TRANSPOSE",
-              "oled": "Transpose",
-              "code": "Transpose",
-              "children": []
-            },
-            {
-              "varName": "source1WaveIndexMenu",
-              "token": "STRING_FOR_WAVE_INDEX",
-              "oled": "Wave-index",
-              "code": "Wave-index",
-              "children": []
-            },
-            {
-              "varName": "osc1PulseWidthMenu",
-              "token": "STRING_FOR_PULSE_WIDTH",
-              "oled": "Pulse Width",
-              "code": "Pulse Width",
-              "children": []
-            },
-            {
-              "varName": "source1FeedbackMenu",
-              "token": "STRING_FOR_FEEDBACK",
-              "oled": "Feedback",
-              "code": "Feedback",
-              "children": []
-            },
-            {
-              "varName": "osc1PhaseMenu",
-              "token": "STRING_FOR_RETRIGGER_PHASE",
-              "oled": "Retrigger phase",
-              "code": "Retrigger phase",
-              "children": []
-            },
-            {
-              "varName": "sample1ReverseMenu",
-              "token": "STRING_FOR_REVERSE",
-              "oled": "Reverse",
-              "code": "Reverse",
-              "children": [
-                {
-                  "varName": "virtualToggle_sample1ReverseMenu_0",
-                  "token": "STRING_FOR_DISABLED",
-                  "oled": "Disabled",
-                  "code": "OFF",
-                  "children": []
-                },
-                {
-                  "varName": "virtualToggle_sample1ReverseMenu_1",
-                  "token": "STRING_FOR_ENABLED",
-                  "oled": "Enabled",
-                  "code": "ON",
-                  "children": []
-                }
-              ]
             },
             {
               "varName": "sample1RepeatMenu",
