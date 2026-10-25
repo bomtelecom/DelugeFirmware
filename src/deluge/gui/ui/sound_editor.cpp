@@ -2289,8 +2289,12 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
-	return (soundEditor.currentSource->ranges.getNumElements() > 1
-	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose)
+	// getRangeIndex(), not getRange(): this runs for every visible pad on each redraw, and getRange() also moves
+	// the source's defaultRangeI, which the note-range picker opens on. It would end up on the zone of the
+	// highest note shown rather than the one last picked or played.
+	Source& source = *soundEditor.currentSource;
+	return (source.ranges.getNumElements() > 1
+	        && source.ranges.getElement(source.getRangeIndex(noteCode + soundEditor.currentSound->transpose))
 	               == soundEditor.currentMultiRange);
 }
 
@@ -2488,15 +2492,11 @@ int32_t SoundEditor::getCurrentZoneIndex(int32_t sourceId) {
 		}
 	}
 
-	// Otherwise the source's own record of its current zone. currentMultiRange is transient - several
-	// navigation paths clear it (Submenu::beginSession, switching between chained horizontal menus,
-	// selecting an item by instrument button) and only some put it back, which used to leave the
-	// menus behaving as though no zone had ever been picked. defaultRangeI outlives all of that; the
-	// note-range picker writes it when a zone is chosen, and playback keeps it pointed at the zone
-	// the last note landed in.
-	if (source.defaultRangeI >= 0 && source.defaultRangeI < numRanges) {
-		return source.defaultRangeI;
-	}
+	// No zone held: say so rather than guess. The source's defaultRangeI isn't a record of the zone you
+	// picked - playback moves it, and so does the keyboard-pad zone highlight, which checks every visible
+	// pad and usually leaves it on the zone of the highest note shown - so falling back to it could name,
+	// and edit, a zone you never chose. Every way into the zone-scoped menus holds a zone, and they keep
+	// it as you move around them; if one is ever lost, they step aside instead.
 	return -1;
 }
 
