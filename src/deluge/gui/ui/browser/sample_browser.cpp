@@ -1239,8 +1239,13 @@ doLoadAsSample:
 		}
 
 		uiNeedsRendering(&audioClipView);
+		display->removeWorkingAnimation();
 	}
-	display->removeWorkingAnimation();
+	else {
+		// Staying in the browser (auto-load), so nothing redraws over the animation. On 7SEG only
+		// removeLoadingAnimation() pops it, revealing the filename beneath - removeWorkingAnimation() is a no-op there.
+		display->removeLoadingAnimation();
+	}
 	return true;
 }
 
