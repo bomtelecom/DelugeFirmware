@@ -74,7 +74,7 @@ SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromSt
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 SettingToggle menuRoundRobinSampleVariants(RuntimeFeatureSettingType::RoundRobinSampleVariants);
 RoundedCornersSettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
-SettingToggle menuShortcutOverlay(RuntimeFeatureSettingType::ShortcutOverlay);
+Setting menuShortcutOverlay(RuntimeFeatureSettingType::ShortcutOverlay);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
