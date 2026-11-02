@@ -23,6 +23,7 @@
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/global_effectable/output_stage_gain.h"
 #include "processing/engines/audio_engine.h"
 #include <limits>
 #include <string.h>
@@ -58,7 +59,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
 	// maximum multiplication would be 4)
 	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
+	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> kClipVolumeAdjustmentShift;
 
 	int32_t volumePostFX = volumeAdjustment;
 
@@ -66,7 +67,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
 	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
 	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
-	                                                  : (volumeAdjustment >> 2);
+	                                                  : (volumeAdjustment >> kKitPostFXBaselineShift);
 
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
@@ -139,8 +140,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processStutter(global_effectable_audio, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio(global_effectable_audio, true, 2);
+		// Self-overdubs compensate for sample playback's 1/8 scaling. Standalone sampling retains its existing gain.
+		recorder->feedAudio(global_effectable_audio, true, recorder->recordingOwnClip ? 3 : 2);
 	}
 
 	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,
