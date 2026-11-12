@@ -470,3 +470,41 @@ TEST(RoundRobinParser, jsonSkipsAlternatesPastTheCap) {
 	STRCMP_EQUAL("rrMode", reader.readNextTagOrAttributeName());
 	CHECK_EQUAL(1, reader.readTagOrAttributeValueInt());
 }
+
+TEST(RoundRobinParser, rrModeKeepsEveryModeThisFirmwareHas) {
+	for (int32_t mode = 0; mode < MultisampleRange::kNumRRModes; mode++) {
+		MockDeserializer reader;
+		reader.ints = {mode};
+		CHECK_EQUAL(mode, readRRModeFromFile(reader, "rrMode"));
+		CHECK_EQUAL(1, reader.exitTagCalls);
+	}
+}
+
+TEST(RoundRobinParser, rrModeFallsBackToCycleForAnUnknownMode) {
+	// One past the last mode is what a preset saved by newer firmware would carry; the others are what a
+	// hand-edited file could. 256 would wrap to a legal 0 if it were narrowed before being checked.
+	for (int32_t mode : {(int32_t)MultisampleRange::kNumRRModes, 9, 255, 256, -1}) {
+		MockDeserializer reader;
+		reader.ints = {mode};
+		CHECK_EQUAL(0, readRRModeFromFile(reader, "rrMode"));
+		CHECK_EQUAL(1, reader.exitTagCalls);
+	}
+}
+
+TEST(RoundRobinParser, variantVolumeKeepsTheWholeScale) {
+	for (int32_t volume : {0, 1, 25, (int32_t)kVariantVolumeUnity}) {
+		MockDeserializer reader;
+		reader.ints = {volume};
+		CHECK_EQUAL(volume, readVariantVolumeFromFile(reader, "variantVolume"));
+		CHECK_EQUAL(1, reader.exitTagCalls);
+	}
+}
+
+TEST(RoundRobinParser, variantVolumeOutsideTheScaleReadsAsUnity) {
+	// 300 would wrap to 44 if it were narrowed before being checked.
+	for (int32_t volume : {(int32_t)kVariantVolumeUnity + 1, 127, 300, -1}) {
+		MockDeserializer reader;
+		reader.ints = {volume};
+		CHECK_EQUAL(kVariantVolumeUnity, readVariantVolumeFromFile(reader, "variantVolume"));
+	}
+}
