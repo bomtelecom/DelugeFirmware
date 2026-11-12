@@ -3387,12 +3387,14 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		// Deliberately not called "volume": at this level that name is already the oscillator's own
 		// LOCAL_OSC_x_VOLUME param, read a few branches above.
 		else if (!strcmp(tagName, "variantVolume")) {
-			if (source->hasMultisampleRanges()) {
-				if (MultiRange* range = source->getOrCreateFirstRange(); range != nullptr) {
-					((SampleHolderForVoice*)range->getAudioFileHolder())->volume = reader.readTagOrAttributeValueInt();
-				}
+			MultiRange* range = source->hasMultisampleRanges() ? source->getOrCreateFirstRange() : nullptr;
+			if (range != nullptr) {
+				((SampleHolderForVoice*)range->getAudioFileHolder())->volume =
+				    readVariantVolumeFromFile(reader, tagName);
 			}
-			reader.exitTag("variantVolume");
+			else {
+				reader.exitTag(tagName);
+			}
 		}
 		else if (!strcmp(tagName, "loopMode")) {
 			source->repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
@@ -3551,8 +3553,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!range) {
 					return Error::INSUFFICIENT_RAM;
 				}
-				range->rrMode = (MultisampleRange::RRMode)reader.readTagOrAttributeValueInt();
-				reader.exitTag("rrMode");
+				range->rrMode = (MultisampleRange::RRMode)readRRModeFromFile(reader, tagName);
 			}
 		}
 		// Velocity ranges live in the round-robin alternates table, which overlaps the wavetable holder.
@@ -3664,8 +3665,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 								msRange->setVelocityRange(0, msRange->getVelocityRangeMin(0), max);
 							}
 							else if (!strcmp(tagName, "variantVolume")) {
-								((SampleHolderForVoice*)holder)->volume = reader.readTagOrAttributeValueInt();
-								reader.exitTag("variantVolume");
+								((SampleHolderForVoice*)holder)->volume = readVariantVolumeFromFile(reader, tagName);
 							}
 							else if (!strcmp(tagName, "roundRobinAlternates")) {
 								Error error = readRoundRobinAlternates(reader, (MultisampleRange*)tempRange);
@@ -3676,8 +3676,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 							}
 							else if (!strcmp(tagName, "rrMode")) {
 								((MultisampleRange*)tempRange)->rrMode =
-								    (MultisampleRange::RRMode)reader.readTagOrAttributeValueInt();
-								reader.exitTag("rrMode");
+								    (MultisampleRange::RRMode)readRRModeFromFile(reader, tagName);
 							}
 							else {
 								goto justExitTag;
@@ -5001,8 +5000,13 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 			int32_t numRanges = source->ranges.getNumElements();
 
+			// A single range with variants holds several samples too, and they needn't all have the same number
+			// of channels.
+			bool singleRangeHasVariants = numRanges == 1 && source->hasMultisampleRanges()
+			                              && static_cast<MultisampleRange*>(source->ranges.getElement(0))->rrCount > 0;
+
 			// If multiple ranges, we have to come back and examine Voices to see which are in use
-			if (numRanges > 1) {
+			if (numRanges > 1 || singleRangeHasVariants) {
 				mustExamineSourceInEachVoice |= (1 << s);
 			}
 

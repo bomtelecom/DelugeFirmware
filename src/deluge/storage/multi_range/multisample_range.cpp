@@ -155,6 +155,19 @@ void MultisampleRange::clearAlternateSlot(uint8_t alternateSlotIndex) {
 	}
 }
 
+void MultisampleRange::clearAllAlternates() {
+	while (rrCount > 0) {
+		clearAlternateSlot(0);
+	}
+	rrMode = RRMode::Cycle;
+	// clearAlternateSlot() walks each alternate's velocity band back to the default as it compacts, but
+	// never touches slot 0's. Only when the table exists: without it the getters return the defaults anyway,
+	// and allocating one just to write them would be waste.
+	if (alternates != nullptr) {
+		setVelocityRange(0, kDefaultVelocityMin, kDefaultVelocityMax);
+	}
+}
+
 SampleHolderForVoice* MultisampleRange::getVariantHolder(uint8_t slotIndex) {
 	if (slotIndex == 0) {
 		return &sampleHolder;
@@ -192,6 +205,26 @@ SampleHolderForVoice* MultisampleRange::resolveVariant(uint8_t velocity, uint8_t
 		default: // RRMode::Cycle
 			slotIndex = resolveNextSlotIndex(rrCount, rrIndex);
 			break;
+		}
+	}
+
+	// A slot whose file didn't load - missing from the card, say - has nothing to play. Take the next slot that
+	// does rather than sound a silent hit, and let the cycle carry on from the one that played. An auditioned
+	// slot is left alone: that's for hearing exactly the slot being edited.
+	if (rrCount > 0 && this != auditionRange_) {
+		uint8_t loadedSlots = 0;
+		for (uint8_t slot = 0; slot <= rrCount; slot++) {
+			SampleHolderForVoice* slotHolder = getVariantHolder(slot);
+			if (slotHolder != nullptr && slotHolder->audioFile != nullptr) {
+				loadedSlots |= (1 << slot);
+			}
+		}
+		uint8_t playableSlotIndex = nextLoadedSlotIndex(rrCount, slotIndex, loadedSlots);
+		if (playableSlotIndex != slotIndex) {
+			slotIndex = playableSlotIndex;
+			if (rrMode == RRMode::Cycle) {
+				rrIndex = (slotIndex + 1) % (rrCount + 1);
+			}
 		}
 	}
 

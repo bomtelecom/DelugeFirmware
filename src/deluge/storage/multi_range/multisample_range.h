@@ -91,6 +91,10 @@ public:
 		return canPopulateAlternateSlot(alternateSlotIndex, rrCount);
 	}
 	void clearAlternateSlot(uint8_t alternateSlotIndex);
+	/// Removes every alternate, goes back to Cycle and puts slot 1 back on the full velocity range, leaving the
+	/// zone as one without variants has it. For when the zone is about to be given a whole new job, such as
+	/// becoming one slice of a kit. Kill the sound's voices first.
+	void clearAllAlternates();
 	/// Shifts each velocity range down to follow the sample that clearAlternateSlot() just moved
 	/// into its position, and resets the vacated top slot to the full default range. The ranges are
 	/// indexed by slotIndex while the sample pointers are indexed by alternate index, so they need
@@ -127,6 +131,19 @@ public:
 
 		return slotIndex;
 	}
+	/// The slot to play in place of one that has no sample: the first loaded one counting up from it, wrapping
+	/// round. Bit n of `loadedSlots` is set when slot n has a sample. Returns `slotIndex` unchanged when it is
+	/// loaded, or when nothing is.
+	static uint8_t nextLoadedSlotIndex(uint8_t rrCount, uint8_t slotIndex, uint8_t loadedSlots) {
+		uint8_t poolSize = rrCount + 1;
+		for (uint8_t step = 0; step < poolSize; step++) {
+			uint8_t candidate = (slotIndex + step) % poolSize;
+			if (loadedSlots & (1 << candidate)) {
+				return candidate;
+			}
+		}
+		return slotIndex;
+	}
 	// --- Menu audition override ---
 	// Static because at most one menu editing session exists at a time. While set, resolveVariant()
 	// on the matching range plays the given slot without advancing the cycle, so auditioning from a
@@ -160,6 +177,8 @@ public:
 	// Serialized as a raw integer in song XML (see sound.cpp), so existing values must never be
 	// renumbered - only appended to.
 	enum class RRMode : uint8_t { Cycle = 0, Random = 1, NoRepeat = 2, Velocity = 3 };
+	/// One past the highest RRMode. Anything read from a file at or above this isn't a mode this firmware has.
+	static constexpr uint8_t kNumRRModes = 4;
 
 	static constexpr uint8_t kDefaultVelocityMin = 1;
 	static constexpr uint8_t kDefaultVelocityMax = 127;
@@ -257,8 +276,8 @@ public:
 	// --- Memory layout notes ---
 	// sampleHolder stays at offsetof(MultiRange)+padding = 8, identical to the pre-round-robin layout.
 	// alternates pointer (4) + rrCount (1) + rrIndex (1) + rrMode (1) + lastResolvedSlotIndex (1) = 8 bytes per zone.
-	// RoundRobinAlternates is a 12-byte pointer table. Each alternate holder (~88 bytes) is
-	// allocated independently only when that specific slot is populated.
+	// RoundRobinAlternates is 20 bytes: a 12-byte pointer table and two 4-byte arrays of velocity range ends.
+	// Each alternate holder (~88 bytes) is allocated independently only when that specific slot is populated.
 
 	SampleHolderForVoice sampleHolder;
 	/// nullptr until the first alternate sample is loaded into this zone.
