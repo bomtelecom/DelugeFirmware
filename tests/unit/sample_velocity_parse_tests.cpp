@@ -67,6 +67,30 @@ TEST(SampleVelocityParse, lastOccurrenceWins) {
 	CHECK_EQUAL(90, velocity);
 }
 
+TEST(SampleVelocityParse, velInsideAWordIsNotAMatch) {
+	uint8_t velocity = 0;
+	CHECK_FALSE(tryParseVelocityFromFilename("Level 3.wav", &velocity));
+	CHECK_FALSE(tryParseVelocityFromFilename("Piano_Level_2.wav", &velocity));
+	CHECK_FALSE(tryParseVelocityFromFilename("Novel2.wav", &velocity));
+	CHECK_FALSE(tryParseVelocityFromFilename("GRAVEL-4.wav", &velocity));
+	CHECK_EQUAL(0, velocity);
+}
+
+TEST(SampleVelocityParse, velStartingAWordIsAMatch) {
+	uint8_t velocity = 0;
+	CHECK_TRUE(tryParseVelocityFromFilename("vel90.wav", &velocity));
+	CHECK_EQUAL(90, velocity);
+	CHECK_TRUE(tryParseVelocityFromFilename("Kick1vel80.wav", &velocity));
+	CHECK_EQUAL(80, velocity);
+	CHECK_TRUE(tryParseVelocityFromFilename("SnareVel100.wav", &velocity));
+	CHECK_EQUAL(100, velocity);
+	CHECK_TRUE(tryParseVelocityFromFilename("Tom.Velocity 64.wav", &velocity));
+	CHECK_EQUAL(64, velocity);
+	// A real tag after a false start still counts.
+	CHECK_TRUE(tryParseVelocityFromFilename("Level 3 vel40.wav", &velocity));
+	CHECK_EQUAL(40, velocity);
+}
+
 TEST(SampleVelocityParse, boundaryValuesAreAccepted) {
 	uint8_t velocity = 0;
 	CHECK_TRUE(tryParseVelocityFromFilename("A_vel1.wav", &velocity));
@@ -126,14 +150,65 @@ TEST(VelocityLayerBoundaries, fourSlotsPartitionCleanly) {
 	}
 }
 
-TEST(VelocityLayerBoundaries, tiedValuesStillProduceNonOverlappingPartition) {
-	uint8_t velocities[] = {64, 64};
-	uint8_t min[2], max[2];
-	computeVelocityLayerBoundaries(velocities, 2, min, max);
+TEST(VelocityLayerBoundaries, tiedValuesShareOneBand) {
+	// Two takes of a soft layer and two of a hard one.
+	uint8_t velocities[] = {64, 64, 127, 127};
+	uint8_t min[4], max[4];
+	CHECK_EQUAL(2, computeVelocityLayerBoundaries(velocities, 4, min, max));
 
-	CHECK(max[0] < min[1]); // no overlap, even for an exact tie
 	CHECK_EQUAL(1, min[0]);
-	CHECK_EQUAL(127, max[1]);
+	CHECK_EQUAL(95, max[0]);
+	CHECK_EQUAL(1, min[1]);
+	CHECK_EQUAL(95, max[1]);
+	CHECK_EQUAL(96, min[2]);
+	CHECK_EQUAL(127, max[2]);
+	CHECK_EQUAL(96, min[3]);
+	CHECK_EQUAL(127, max[3]);
+}
+
+TEST(VelocityLayerBoundaries, tiedValuesNeedNotBeAdjacentInSlotOrder) {
+	uint8_t velocities[] = {127, 40, 127};
+	uint8_t min[3], max[3];
+	CHECK_EQUAL(2, computeVelocityLayerBoundaries(velocities, 3, min, max));
+
+	CHECK_EQUAL(1, min[1]);
+	CHECK_EQUAL(83, max[1]);
+	CHECK_EQUAL(84, min[0]);
+	CHECK_EQUAL(127, max[0]);
+	CHECK_EQUAL(84, min[2]);
+	CHECK_EQUAL(127, max[2]);
+}
+
+TEST(VelocityLayerBoundaries, everySlotOnOneValueIsASingleFullLayer) {
+	// The top value used to leave its second slot on 128-127, which nothing could play.
+	uint8_t velocities[] = {127, 127};
+	uint8_t min[2], max[2];
+	CHECK_EQUAL(1, computeVelocityLayerBoundaries(velocities, 2, min, max));
+
+	for (int32_t slot = 0; slot < 2; slot++) {
+		CHECK_EQUAL(1, min[slot]);
+		CHECK_EQUAL(127, max[slot]);
+	}
+}
+
+TEST(VelocityLayerBoundaries, bandsNeverLeaveTheVelocityRange) {
+	uint8_t tags[] = {1, 2, 64, 126, 127};
+	for (uint8_t a : tags) {
+		for (uint8_t b : tags) {
+			for (uint8_t c : tags) {
+				uint8_t velocities[] = {a, b, c};
+				uint8_t min[3], max[3];
+				computeVelocityLayerBoundaries(velocities, 3, min, max);
+				for (int32_t slot = 0; slot < 3; slot++) {
+					CHECK(min[slot] >= 1);
+					CHECK(max[slot] <= 127);
+					CHECK(min[slot] <= max[slot]);
+					// A slot's own tag always falls inside its band.
+					CHECK(velocities[slot] >= min[slot] && velocities[slot] <= max[slot]);
+				}
+			}
+		}
+	}
 }
 
 TEST(VelocityLayerBoundaries, singleSlotIsNoOp) {

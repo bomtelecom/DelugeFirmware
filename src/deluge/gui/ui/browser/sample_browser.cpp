@@ -32,6 +32,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -519,6 +520,14 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 	return ActionResult::DEALT_WITH;
 }
 
+bool SampleBrowser::mustLoadAsSample() {
+	if (targetRoundRobinSlot > 0) {
+		return true;
+	}
+	return getCurrentClip()->type != ClipType::AUDIO && soundEditor.currentSource != nullptr
+	       && deluge::gui::menu_item::sample::sourceUsesVariants(*soundEditor.currentSource);
+}
+
 bool SampleBrowser::canImportWholeKit() {
 	// Folder-to-kit and slicing rebuild drums, so never from a variant slot's browser.
 	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0 && targetRoundRobinSlot == 0
@@ -978,10 +987,9 @@ removeLoadingAnimationAndGetOut:
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
 		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
 
-		// A variant slot can only hold a sample: forcing WAVETABLE would convert the whole oscillator
-		// and destroy the zone's other variants. The load menu hides those options for slots 2-4;
-		// this catches any other route.
-		if (makeWaveTableWorkAtAllCosts && targetRoundRobinSlot > 0) {
+		// An oscillator with variants can only hold samples: forcing WAVETABLE would convert the whole
+		// oscillator and destroy them. The load menu hides those options; this catches any other route.
+		if (makeWaveTableWorkAtAllCosts && mustLoadAsSample()) {
 			display->removeLoadingAnimation();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 			return false;
@@ -1092,9 +1100,9 @@ doLoadAsSample:
 			Sample* sample = (Sample*)targetHolder->audioFile;
 
 			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
-			// instead. Never do this for an alternate round-robin slot though - converting the source to
-			// WAVETABLE would destroy all its variants.
-			if (mayDoWaveTable && numTypesTried <= 1 && targetRoundRobinSlot == 0
+			// instead. Never do this on an oscillator with variants though - converting the source to
+			// WAVETABLE would destroy them all.
+			if (mayDoWaveTable && numTypesTried <= 1 && !mustLoadAsSample()
 			    && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
 				goto doLoadAsWaveTable;
 			}
@@ -1109,8 +1117,9 @@ doLoadAsSample:
 				// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
 				if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
 
-					// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
-					if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
+					// Ideally, we'd like to use the wavetable engine for this single-cycle-ness - unless that
+					// would cost the oscillator its variants.
+					if (mayDoWaveTable && numTypesTried <= 1 && !mustLoadAsSample() && sample->numChannels == 1
 					    && sample->lengthInSamples >= kWavetableMinCycleSize
 					    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 
@@ -1944,24 +1953,8 @@ skipOctaveCorrection:
 	// The first range may already carry round-robin alternates and a mode/velocity configuration
 	// from earlier manual use (only ranges[1..] got deleted above) - the loop below is about to
 	// repopulate it from the folder's contents, so start from a clean slate rather than mixing stale
-	// alternate data with the newly imported set. clearAlternateSlot() is reused here rather than
-	// hand-rolling deallocation again, since it already correctly destructs and frees each holder.
-	{
-		auto* firstRange = (MultisampleRange*)soundEditor.currentMultiRange;
-		while (firstRange->rrCount > 0) {
-			firstRange->clearAlternateSlot(0);
-		}
-		firstRange->rrMode = MultisampleRange::RRMode::Cycle;
-		// clearAlternateSlot() walks each alternate's velocity band back to the default as it
-		// compacts, but slot 0's band is never touched by that. Reset it too, so a re-import doesn't
-		// inherit a band from whatever was loaded here before. Only when the table already exists -
-		// if it doesn't, the getters return the defaults anyway and allocating one just to write
-		// them would be waste.
-		if (firstRange->alternates != nullptr) {
-			firstRange->setVelocityRange(0, MultisampleRange::kDefaultVelocityMin,
-			                             MultisampleRange::kDefaultVelocityMax);
-		}
-	}
+	// alternate data with the newly imported set.
+	static_cast<MultisampleRange*>(soundEditor.currentMultiRange)->clearAllAlternates();
 
 	// Samples that share a note become round-robin alternates of one shared range instead of each
 	// getting - or, as used to happen, silently losing - their own range. A group holds at most
@@ -2061,11 +2054,14 @@ skipOctaveCorrection:
 			if (allHaveVelocity) {
 				uint8_t rangeMin[kMaxGroupMembers];
 				uint8_t rangeMax[kMaxGroupMembers];
-				computeVelocityLayerBoundaries(groupVelocities, groupMemberCount, rangeMin, rangeMax);
-				for (int32_t m = 0; m < groupMemberCount; m++) {
-					range->setVelocityRange(m, rangeMin[m], rangeMax[m]);
+				// Files sharing a tag are takes of one layer and share its band. If they all share one, there
+				// is only the one layer and nothing for velocity to choose between: leave the zone cycling.
+				if (computeVelocityLayerBoundaries(groupVelocities, groupMemberCount, rangeMin, rangeMax) > 1) {
+					for (int32_t m = 0; m < groupMemberCount; m++) {
+						range->setVelocityRange(m, rangeMin[m], rangeMax[m]);
+					}
+					range->rrMode = MultisampleRange::RRMode::Velocity;
 				}
-				range->rrMode = MultisampleRange::RRMode::Velocity;
 			}
 		}
 
@@ -2232,6 +2228,12 @@ getOut:
 				}
 
 				drum->killAllVoices();
+
+				// This drum is reused for the first sample of the new kit. Any round-robin variants it had
+				// would otherwise stay, and it would alternate between the new sample and them.
+				if (source->hasMultisampleRanges()) {
+					static_cast<MultisampleRange*>(range)->clearAllAlternates();
+				}
 			}
 
 			// Or, for subsequent samples...

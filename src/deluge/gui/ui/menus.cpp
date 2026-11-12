@@ -189,6 +189,7 @@
 #include "gui/menu_item/sample/repeat.h"
 #include "gui/menu_item/sample/reverse.h"
 #include "gui/menu_item/sample/round_robin.h"
+#include "gui/menu_item/sample/slot_picker.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
@@ -301,6 +302,11 @@ sample::SlotPicker* getSlotPickerForShortcut(MenuItem* item, ModControllableAudi
 	    {&sample1EndMenu, &sample1SlotPickerMenu, END},     {&source1TransposeMenu, &sample1SlotPickerMenu, TRANSPOSE},
 	};
 	if (item == nullptr || modControllable == nullptr) {
+		return nullptr;
+	}
+	// An audio clip shares the FILE pad with the oscillators, but what it hands us is the clip's own
+	// ModControllableAudio, not a Sound - and the pickers below cast it to one.
+	if (Clip* clip = getCurrentClip(); clip == nullptr || clip->type == ClipType::AUDIO) {
 		return nullptr;
 	}
 	for (const Route& route : routes) {
