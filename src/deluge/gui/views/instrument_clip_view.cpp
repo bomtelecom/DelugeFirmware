@@ -925,9 +925,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 	}
 	else {
 		// Button release
-		if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-			currentUIMode = UI_MODE_NONE;
-		}
+		exitUIMode(UI_MODE_SCALE_MODE_BUTTON_PRESSED);
 		if (toggleScaleModeOnButtonRelease && isShortPress(scaleButtonPressTime)) {
 			toggleScaleModeOnButtonRelease = false;
 			if (inScaleMode) {
@@ -1059,15 +1057,13 @@ ramError:
 
 void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
-	// If they want to copy or paste automation...
-	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (on) {
-			if (Buttons::isShiftButtonPressed()) {
-				pasteAutomation(whichModEncoder);
-			}
-			else {
-				copyAutomation(whichModEncoder);
-			}
+	// Copy / paste uses presses; releases must still reach the sound to stop stutter.
+	if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		if (Buttons::isShiftButtonPressed()) {
+			pasteAutomation(whichModEncoder);
+		}
+		else {
+			copyAutomation(whichModEncoder);
 		}
 	}
 	else {
@@ -2132,19 +2128,24 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	if (path == &nothing) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	char* slashAddress = strrchr(path, '/');
+	char const* slashAddress = strrchr(path, '/');
 	if (slashAddress == nullptr) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
+	// This allocation avoids shenanigans with trying to terminate in place to get a subpath.
+	// I think the afh filepath can get changed in this process so putting it back could later crash.
+	String dirPath;
+	if (dirPath.set(path, slashAddress - path) != Error::NONE) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Open directory of current audio file
-	*slashAddress = 0;
-	staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
-		*slashAddress = '/';
+	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirPath.get()), error, {
 		display->displayError(Error::SD_CARD);
 		return ActionResult::DEALT_WITH;
 	});
-	*slashAddress = '/';
 
 	// Select random audio file from directory
 	int32_t fileCount = 0;
@@ -2164,10 +2165,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		soundDrum->killAllVoices();
 
 		afh->setAudioFile(nullptr);
-		// set the slash to 0 again
-		*slashAddress = 0;
-		afh->filePath.set(path);
-
+		afh->filePath.set(&dirPath);
 		afh->filePath.concatenate("/");
 		afh->filePath.concatenate(chosenFilename);
 		afh->loadFile(false, true, true, 1, nullptr, false);
@@ -2179,7 +2177,6 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		}
 		soundDrum->drumName = chosenFilename;
 		kit->beenEdited();
-		*slashAddress = '/';
 
 		// we've randomized a drum sample
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -4785,8 +4782,9 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 
 				if (outputType == OutputType::SYNTH) {
 					if (inSoundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
-						                                              + ((SoundInstrument*)output)->transpose);
+						menu_item::multiRangeMenu.noteOnToChangeRange(
+						    clip->getYNoteFromYDisplay(yDisplay, currentSong)
+						    + static_cast<SoundInstrument&>(*output).transpose);
 					}
 				}
 
@@ -5499,7 +5497,7 @@ void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32
 		if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 			menu_item::multiRangeMenu.noteOnToChangeRange(
 			    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
-			    + ((SoundInstrument*)instrument)->transpose);
+			    + static_cast<SoundInstrument&>(*instrument).transpose);
 		}
 	}
 }
@@ -5642,7 +5640,7 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 // sub-function of AuditionPadAction
 // pad is released, end previous audition pad press
 void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
-                                              NoteRow* noteRowOnActiveClip) {
+                                              NoteRow* noteRowOnActiveClip, bool changeRowSelection) {
 	if (auditionPadIsPressed[yDisplay]) {
 		bool auditionNoteWasSounding = lastAuditionedVelocityOnScreen[yDisplay] != 255;
 		auditionPadIsPressed[yDisplay] = 0;
@@ -5657,8 +5655,8 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
 	}
-	display->cancelPopup();        // In case euclidean stuff was being edited etc
-	someAuditioningHasEnded(true); // lastAuditionedYDisplay == yDisplay);
+	display->cancelPopup(); // In case euclidean stuff was being edited etc
+	someAuditioningHasEnded(changeRowSelection);
 	actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 	actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 }
@@ -6852,8 +6850,8 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 
 ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
 	ActionResult res;
-	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
-	if (inNoteEditor) {
+	// Automation View owns the audition release even if a shortcut changed its editor.
+	if (getRootUI() == &automationView) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		Output* output = clip->output;
 		OutputType outputType = output->type;

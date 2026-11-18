@@ -456,12 +456,10 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		return;
 	}
 
-	InstrumentClip* clip = getCurrentInstrumentClip();
-
-	// don't allow clip type change if clip is not empty
-	// only impose this restriction if switching to/from kit clip
+	// Switching to/from a kit requires the target clip and output to be empty.
+	// Arranger browsing replaces an output without a target clip; the current clip may belong to another track.
 	if (((outputTypeToLoad == OutputType::KIT) || (newOutputType == OutputType::KIT))
-	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
+	    && ((instrumentClipToLoadFor && !instrumentClipToLoadFor->isEmpty()) || !instrumentToReplace->isEmpty())) {
 		return;
 	}
 
@@ -1462,7 +1460,8 @@ needToGrabLeftmostButHaveToReadFirst:
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
 /// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
-                                                                  Availability availabilityRequirement, bool doBlink) {
+                                                                  Availability availabilityRequirement, bool doBlink,
+                                                                  Clip* displayClip) {
 
 	AudioEngine::logAction("doPresetNavigation");
 
@@ -1608,7 +1607,7 @@ doneMoving:
 	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
 
 	if (toReturn.fileItem->instrument) {
-		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
+		view.displayOutputName(toReturn.fileItem->instrument, doBlink, displayClip);
 	}
 	else {
 		toReturn.error = toReturn.fileItem->getFilenameWithoutExtension(&newName);
@@ -1621,7 +1620,7 @@ doneMoving:
 			emptyFileItems();
 			return toReturn;
 		}
-		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink);
+		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink, displayClip);
 	}
 
 	if (display->haveOLED()) {

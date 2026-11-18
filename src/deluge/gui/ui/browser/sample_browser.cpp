@@ -276,6 +276,7 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 }
 
 void SampleBrowser::exitAndNeverDeleteDrum() {
+	clearMenuHeadingTo();
 	display->setNextTransitionDirection(-1);
 	close();
 }
@@ -283,6 +284,9 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 // Will "delete drum if possible".
 void SampleBrowser::exitAction() {
 	UI* redrawUI = nullptr;
+
+	// No file was chosen, so don't jump to the horizontal menu next time a file is chosen from some other route
+	clearMenuHeadingTo();
 
 	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
@@ -388,6 +392,7 @@ void SampleBrowser::enterKeyPress() {
 
 		if (error != Error::NONE) {
 			display->displayError(error);
+			clearMenuHeadingTo();
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 		}
 	}
@@ -1253,19 +1258,20 @@ doLoadAsSample:
 	}
 
 	if (!loadWithoutExiting) {
+		menu_item::HorizontalMenu* parentMenu = parentMenuHeadingTo;
+		MenuItem* menuItem = menuItemHeadingTo;
 		exitAndNeverDeleteDrum();
 
-		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
+		// A HorizontalMenuGroup can't be drawn as a vertical menu, so only go there if it'll render horizontally
+		if (menuItem != nullptr && parentMenu != nullptr
+		    && parentMenu->renderingStyle() == menu_item::Submenu::HORIZONTAL) {
 			if (isUIOpen(&soundEditor)) {
 				closeUI(&soundEditor);
 			}
 
-			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-			soundEditor.setup(getCurrentClip(), parentMenuHeadingTo);
+			parentMenu->focusChild(menuItem);
+			soundEditor.setup(getCurrentClip(), parentMenu);
 			soundEditor.enterOrUpdateSoundEditor(true);
-
-			parentMenuHeadingTo = nullptr;
-			menuItemHeadingTo = nullptr;
 		}
 
 		uiNeedsRendering(&audioClipView);

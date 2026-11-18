@@ -68,6 +68,7 @@
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
+#include "gui/menu_item/envelope/settings.h"
 #include "gui/menu_item/eq/eq_menu.h"
 #include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
@@ -1125,7 +1126,7 @@ PLACE_SDRAM_BSS sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRIN
 
 PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 PLACE_SDRAM_BSS usb::Audio usbAudioEnabledMenu{STRING_FOR_ENABLED, STRING_FOR_USB_AUDIO};
-PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_INPUT, STRING_FOR_USB_INPUT};
+PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_USB_SMART_MONITORING, STRING_FOR_USB_INPUT};
 PLACE_SDRAM_BSS usb::OutputSource usbAudioOutputMenu{STRING_FOR_OUTPUT, STRING_FOR_USB_OUTPUT};
 PLACE_SDRAM_BSS Submenu usbAudioMenu{
     STRING_FOR_USB_AUDIO,

@@ -150,7 +150,7 @@ public:
 			valueBuf.append(l10n::get(l10n::String::STRING_FOR_BOTTOM));
 		}
 		else {
-			char noteName[8];
+			char noteName[kNoteCodeStringBufferSize];
 			noteCodeToString(source.ranges.getElement(rangeIndex - 1)->topNote + 1, noteName);
 			valueBuf.append(noteName);
 		}
@@ -161,7 +161,7 @@ public:
 			valueBuf.append("top");
 		}
 		else {
-			char noteName[8];
+			char noteName[kNoteCodeStringBufferSize];
 			noteCodeToString(source.ranges.getElement(rangeIndex)->topNote, noteName);
 			valueBuf.append(noteName);
 		}

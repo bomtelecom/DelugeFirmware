@@ -43,6 +43,7 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 
 	if (!openUI(&sampleBrowser)) {
+		sampleBrowser.clearMenuHeadingTo();
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
