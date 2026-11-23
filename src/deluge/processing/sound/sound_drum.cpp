@@ -170,7 +170,8 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack, uint8_t triggeringCh
 			return;
 		}
 
-		// Ok, choke it
+		// Ok, choke it - including notes still waiting for a voice
+		DeferredNoteOns::forgetSound(this);
 		fastReleaseAllVoices(modelStack); // Accepts NULL
 	}
 }

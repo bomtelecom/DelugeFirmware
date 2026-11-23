@@ -34,6 +34,7 @@
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/note_spelling.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -1464,7 +1465,7 @@ bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	// get song root note
 	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural, true, useSharpsForNoteNames());
 
 	// get song scale
 	const char* scaleName = getScaleName(currentSong->getCurrentScale());

@@ -21,6 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/song/note_spelling.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -151,7 +152,8 @@ public:
 		}
 		else {
 			char noteName[kNoteCodeStringBufferSize];
-			noteCodeToString(source.ranges.getElement(rangeIndex - 1)->topNote + 1, noteName);
+			noteCodeToString(source.ranges.getElement(rangeIndex - 1)->topNote + 1, noteName, nullptr, true,
+			                 useSharpsForNoteNames());
 			valueBuf.append(noteName);
 		}
 
@@ -162,7 +164,8 @@ public:
 		}
 		else {
 			char noteName[kNoteCodeStringBufferSize];
-			noteCodeToString(source.ranges.getElement(rangeIndex)->topNote, noteName);
+			noteCodeToString(source.ranges.getElement(rangeIndex)->topNote, noteName, nullptr, true,
+			                 useSharpsForNoteNames());
 			valueBuf.append(noteName);
 		}
 
